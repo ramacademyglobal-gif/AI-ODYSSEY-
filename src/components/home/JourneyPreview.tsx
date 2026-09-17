@@ -3,13 +3,13 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { SCHEDULE_LIVE } from "@/data/schedule";
+import { PUBLIC_SCHEDULE_LIVE } from "@/data/schedule";
 import { clsx } from "clsx";
 
 export default function JourneyPreview() {
   const [day, setDay] = useState<1 | 2>(1);
   const items = useMemo(
-    () => SCHEDULE_LIVE.filter((item) => item.day === day),
+    () => PUBLIC_SCHEDULE_LIVE.filter((item) => item.day === day),
     [day]
   );
 

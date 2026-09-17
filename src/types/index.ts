@@ -32,6 +32,8 @@ export interface ScheduleItem {
   date?: string;
   category?: "checkpoint" | "keynote" | "evaluation" | "food" | "fun" | "deadline" | "registration" | "briefing" | "ideation" | "build" | "presentation";
   highlight?: boolean;
+  /** Student-facing public timeline only — omit detailed build/ops phases from UI */
+  isPublicTimeline?: boolean;
 }
 
 export interface Person {

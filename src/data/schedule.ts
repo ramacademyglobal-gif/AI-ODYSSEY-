@@ -21,7 +21,10 @@ export const SCHEDULE_BEFORE: ScheduleItem[] = [
   },
 ];
 
-/** Confirmed AI Odyssey 24 event-day flow — 28 Sep 10:00 AM → 29 Sep 10:00 AM */
+/**
+ * Full event-day schedule (includes internal build / ops phases).
+ * Student-facing UI uses PUBLIC_SCHEDULE_LIVE only.
+ */
 export const SCHEDULE_LIVE: ScheduleItem[] = [
   {
     id: "SL-01",
@@ -31,6 +34,7 @@ export const SCHEDULE_LIVE: ScheduleItem[] = [
     category: "registration",
     day: 1,
     date: "28 September 2026",
+    isPublicTimeline: true,
   },
   {
     id: "SL-02",
@@ -41,6 +45,7 @@ export const SCHEDULE_LIVE: ScheduleItem[] = [
     day: 1,
     date: "28 September 2026",
     highlight: true,
+    isPublicTimeline: true,
   },
   {
     id: "SL-03",
@@ -68,6 +73,7 @@ export const SCHEDULE_LIVE: ScheduleItem[] = [
     category: "food",
     day: 1,
     date: "28 September 2026",
+    isPublicTimeline: true,
   },
   {
     id: "SL-06",
@@ -87,6 +93,7 @@ export const SCHEDULE_LIVE: ScheduleItem[] = [
     category: "food",
     day: 1,
     date: "28 September 2026",
+    isPublicTimeline: true,
   },
   {
     id: "SL-08",
@@ -105,6 +112,7 @@ export const SCHEDULE_LIVE: ScheduleItem[] = [
     category: "food",
     day: 1,
     date: "28 September 2026",
+    isPublicTimeline: true,
   },
   {
     id: "SL-10",
@@ -124,6 +132,7 @@ export const SCHEDULE_LIVE: ScheduleItem[] = [
     category: "food",
     day: 1,
     date: "28 September 2026",
+    isPublicTimeline: true,
   },
   {
     id: "SL-12",
@@ -143,6 +152,7 @@ export const SCHEDULE_LIVE: ScheduleItem[] = [
     category: "food",
     day: 2,
     date: "29 September 2026",
+    isPublicTimeline: true,
   },
   {
     id: "SL-14",
@@ -162,6 +172,7 @@ export const SCHEDULE_LIVE: ScheduleItem[] = [
     category: "food",
     day: 2,
     date: "29 September 2026",
+    isPublicTimeline: true,
   },
   {
     id: "SL-16",
@@ -194,12 +205,18 @@ export const SCHEDULE_LIVE: ScheduleItem[] = [
   },
   {
     id: "SL-19",
-    time: "10:00 AM onwards",
+    time: "10:00 AM ONWARDS",
     title: "Valedictory, Awards & Event Conclusion",
     phase: "live",
     category: "keynote",
     day: 2,
     date: "29 September 2026",
     highlight: true,
+    isPublicTimeline: true,
   },
 ];
+
+/** Simplified student-facing timeline (homepage + /schedule). */
+export const PUBLIC_SCHEDULE_LIVE: ScheduleItem[] = SCHEDULE_LIVE.filter(
+  (item) => item.isPublicTimeline
+);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { SCHEDULE_LIVE } from "@/data/schedule";
+import { PUBLIC_SCHEDULE_LIVE } from "@/data/schedule";
 import { EVENT_CONFIG } from "@/config/event";
 import PageHero from "@/components/common/PageHero";
 import { clsx } from "clsx";
@@ -48,7 +48,7 @@ function isOnwards(time: string) {
 export default function SchedulePage() {
   const [day, setDay] = useState<1 | 2>(1);
   const [now, setNow] = useState(() => new Date());
-  const items = useMemo(() => SCHEDULE_LIVE.filter((i) => i.day === day), [day]);
+  const items = useMemo(() => PUBLIC_SCHEDULE_LIVE.filter((i) => i.day === day), [day]);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30_000);
@@ -62,7 +62,7 @@ export default function SchedulePage() {
 
   const activeId = useMemo(() => {
     if (!isLive) return null;
-    for (const item of SCHEDULE_LIVE) {
+    for (const item of PUBLIC_SCHEDULE_LIVE) {
       if (isOnwards(item.time) && item.day === 2) {
         const start = new Date("2026-09-29T10:00:00+05:30");
         if (now >= start) return item.id;

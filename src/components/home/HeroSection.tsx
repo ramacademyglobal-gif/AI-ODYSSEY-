@@ -62,19 +62,20 @@ export default function HeroSection() {
         </div>
       </div>
 
-      <div className="relative z-20 my-auto text-center max-w-7xl w-full flex flex-col items-center justify-center">
+      <div className="relative z-20 my-auto text-center w-[94vw] max-w-none flex flex-col items-center justify-center">
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          className="relative px-2"
+          className="relative px-1 sm:px-2 w-full"
           style={{ transform: "translate3d(var(--px), var(--py), 0)" }}
         >
           <p className="font-mono-custom text-[10px] tracking-[0.35em] uppercase text-[var(--text-muted)] mb-3">
             AI ODYSSEY 24
           </p>
-          <h1 className="font-display font-light uppercase select-none origin-gradient-text text-hero">
-            ODYSSEY
+          <h1 className="font-display font-light uppercase select-none origin-gradient-text text-hero inline-flex items-baseline justify-center gap-[0.2em] whitespace-nowrap max-[430px]:flex-col max-[430px]:items-center max-[430px]:gap-0 max-[430px]:whitespace-normal">
+            <span>AI</span>
+            <span>ODYSSEY</span>
           </h1>
         </motion.div>
 

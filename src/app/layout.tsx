@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
 import CustomCursor from "@/components/common/CustomCursor";
+import OpeningIntro from "@/components/common/OpeningIntro";
 import { EVENT_CONFIG } from "@/config/event";
 
 const ebGaramond = EB_Garamond({
@@ -66,6 +67,7 @@ export default function RootLayout({
     >
       <body className="bg-[var(--bg-primary)] text-[var(--text-primary)] antialiased selection:bg-[var(--accent)] selection:text-[var(--bg-secondary)] overflow-x-hidden font-serif min-h-screen flex flex-col">
         <div className="relative bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen overflow-x-hidden font-serif flex flex-col">
+          <OpeningIntro />
           <CustomCursor />
           <Navbar />
           <main className="relative z-10 w-full flex-grow">{children}</main>
