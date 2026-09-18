@@ -129,6 +129,37 @@
   cursor: wait;
 }
 
+.checkin-gate-unlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  width: min(100%, 16rem);
+}
+
+.checkin-gate-unlock__label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9b9da5;
+}
+
+.checkin-gate-unlock__input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #101218;
+  border: 1px solid #292c35;
+  color: #fff;
+  padding: 0.85rem 1rem;
+  font-size: 1rem;
+  outline: none;
+}
+
+.checkin-gate-unlock__input:focus {
+  border-color: #ff4d1c;
+  box-shadow: 0 0 0 1px #ff4d1c;
+}
+
 .checkin-done {
   width: 100%;
   display: flex;

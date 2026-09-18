@@ -52,6 +52,8 @@ Supabase alone is not enough — this API must also be running.
    - `ADMIN_EMAIL` / `ADMIN_USERNAME` / `ADMIN_PASSWORD_HASH` (if used)
    - `PAYMENT_STORAGE_BUCKET` = `payment-proofs`
    - `JWT_EXPIRES_IN` = `8h`
+   - `GATE_CHECKIN_CODE` = organizer passcode for public QR gate check-in
+     (e.g. `RAAMTECH`)
 5. After deploy, copy the Render URL, e.g. `https://YOUR-SERVICE.onrender.com`
 6. In **Vercel** project env, set:
    ```

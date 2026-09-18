@@ -39,6 +39,35 @@ type GateCheckinView = {
   already_checked_in?: boolean;
 };
 
+const GATE_UNLOCK_KEY = "ai_odyssey_24_gate_unlocked";
+const GATE_CODE_KEY = "ai_odyssey_24_gate_code";
+
+function readStoredGateCode(): string {
+  try {
+    return sessionStorage.getItem(GATE_CODE_KEY) || "";
+  } catch {
+    return "";
+  }
+}
+
+function persistGateSession(code: string): void {
+  try {
+    sessionStorage.setItem(GATE_UNLOCK_KEY, "1");
+    sessionStorage.setItem(GATE_CODE_KEY, code);
+  } catch {
+    // ignore
+  }
+}
+
+function clearGateSession(): void {
+  try {
+    sessionStorage.removeItem(GATE_UNLOCK_KEY);
+    sessionStorage.removeItem(GATE_CODE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 async function requestGate<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
@@ -60,6 +89,7 @@ async function requestGate<T>(path: string, init?: RequestInit): Promise<T> {
   const body = (await response.json()) as {
     success?: boolean;
     data?: T;
+    error?: string;
     message?: string;
     details?: string[];
   };
@@ -68,7 +98,7 @@ async function requestGate<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(
       response.status,
       body.details?.[0] || body.message || "Request failed",
-      "GATE_CHECKIN_FAILED",
+      body.error || "GATE_CHECKIN_FAILED",
       body.details ?? [],
     );
   }
@@ -98,6 +128,16 @@ export default function CheckinGatePage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+  const [gateCode, setGateCode] = useState("");
+  const [gateUnlocked, setGateUnlocked] = useState(false);
+
+  useEffect(() => {
+    const stored = readStoredGateCode();
+    if (stored) {
+      setGateCode(stored);
+      setGateUnlocked(true);
+    }
+  }, []);
 
   const loadScan = useCallback(async (token: string) => {
     return requestGate<GateCheckinView>(
@@ -145,6 +185,12 @@ export default function CheckinGatePage() {
   const handleCheckIn = async () => {
     if (!qrToken || submitting) return;
 
+    const codeToSend = (gateCode.trim() || readStoredGateCode()).trim();
+    if (!codeToSend) {
+      setError("Enter the organizer passcode to check in.");
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
     setFlash(null);
@@ -154,8 +200,10 @@ export default function CheckinGatePage() {
         GateCheckinView & { already_checked_in: boolean }
       >(`/passes/${encodeURIComponent(qrToken)}/checkin`, {
         method: "POST",
-        body: "{}",
+        body: JSON.stringify({ gate_code: codeToSend }),
       });
+      persistGateSession(codeToSend);
+      setGateUnlocked(true);
       setView(result);
       setFlash(
         result.already_checked_in
@@ -163,6 +211,10 @@ export default function CheckinGatePage() {
           : `${result.participant.full_name} is checked in.`,
       );
     } catch (err) {
+      if (err instanceof ApiError && err.code === "GATE_CODE_INVALID") {
+        setGateUnlocked(false);
+        clearGateSession();
+      }
       setError(
         err instanceof ApiError ? err.message : "Check-in failed. Try again.",
       );
@@ -187,163 +239,184 @@ export default function CheckinGatePage() {
     <div className="page-stage">
       <RouteVeil />
       <main className="checkin-page">
-      <div className="checkin-shell">
-        <Link className="checkin-home checkin-home--top" href="/">
-          ← Back to home
-        </Link>
-        <p className="checkin-eyebrow">Organizer scan · AI ODYSSEY 24</p>
-        <h1>Team check-in</h1>
-        <p className="checkin-lead">
-          Confirm this hacker at the gate, then track who still needs to scan.
-        </p>
-
-        {loading ? <p className="checkin-muted">Loading pass…</p> : null}
-        {error ? (
-          <p className="checkin-error" role="alert">
-            {error}
+        <div className="checkin-shell">
+          <Link className="checkin-home checkin-home--top" href="/">
+            ← Back to home
+          </Link>
+          <p className="checkin-eyebrow">Organizer scan · AI ODYSSEY 24</p>
+          <h1>Team check-in</h1>
+          <p className="checkin-lead">
+            Pass details load from the QR. Organizers must enter the gate
+            passcode before marking anyone checked in.
           </p>
-        ) : null}
-        {flash ? (
-          <p className="checkin-flash" role="status">
-            {flash}
-          </p>
-        ) : null}
 
-        {view ? (
-          <>
-            <section className="checkin-hero">
-              <div className="checkin-hero__main">
-                <p className="checkin-kicker">Scanned participant</p>
-                <h2 className="checkin-hero__name">
-                  {view.participant.full_name}
-                </h2>
-                <code className="checkin-hero__id">
-                  {view.participant.hacker_id}
-                </code>
-                <p className="checkin-hero__role">
-                  {roleLabel(view.participant.role)}
-                </p>
-              </div>
+          {loading ? <p className="checkin-muted">Loading pass…</p> : null}
+          {error ? (
+            <p className="checkin-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          {flash ? (
+            <p className="checkin-flash" role="status">
+              {flash}
+            </p>
+          ) : null}
 
-              <div className="checkin-hero__action">
-                {view.participant.checked_in ? (
-                  <div className="checkin-done" role="status">
-                    <strong>Checked in</strong>
-                    <span>
-                      {formatCheckinTime(view.participant.checked_in_at) ||
-                        "On record"}
-                    </span>
+          {view ? (
+            <>
+              <section className="checkin-hero">
+                <div className="checkin-hero__main">
+                  <p className="checkin-kicker">Scanned participant</p>
+                  <h2 className="checkin-hero__name">
+                    {view.participant.full_name}
+                  </h2>
+                  <code className="checkin-hero__id">
+                    {view.participant.hacker_id}
+                  </code>
+                  <p className="checkin-hero__role">
+                    {roleLabel(view.participant.role)}
+                  </p>
+                </div>
+
+                <div className="checkin-hero__action">
+                  {view.participant.checked_in ? (
+                    <div className="checkin-done" role="status">
+                      <strong>Checked in</strong>
+                      <span>
+                        {formatCheckinTime(view.participant.checked_in_at) ||
+                          "On record"}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="checkin-gate-unlock">
+                      <label
+                        className="checkin-gate-unlock__label"
+                        htmlFor="gate-passcode"
+                      >
+                        Organizer passcode
+                      </label>
+                      <input
+                        id="gate-passcode"
+                        className="checkin-gate-unlock__input"
+                        type="password"
+                        autoComplete="current-password"
+                        placeholder={
+                          gateUnlocked ? "Passcode saved for this session" : "Enter passcode"
+                        }
+                        value={gateCode}
+                        onChange={(e) => setGateCode(e.target.value)}
+                        disabled={submitting}
+                      />
+                      <button
+                        type="button"
+                        className="checkin-confirm"
+                        onClick={() => void handleCheckIn()}
+                        disabled={submitting}
+                      >
+                        {submitting ? "Checking in…" : "Mark as checked in"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="checkin-card checkin-card--team">
+                <div className="checkin-team-head">
+                  <div>
+                    <p className="checkin-kicker">Team</p>
+                    <h3>{view.team.team_name}</h3>
                   </div>
+                  <div className="checkin-progress" aria-hidden="true">
+                    <div
+                      className="checkin-progress__fill"
+                      style={{ width: `${progressPct}%` }}
+                    />
+                  </div>
+                </div>
+
+                <dl className="checkin-meta">
+                  <div>
+                    <dt>Team code</dt>
+                    <dd>{view.team.team_code}</dd>
+                  </div>
+                  <div>
+                    <dt>Checked in</dt>
+                    <dd>
+                      {view.checkin_summary.checked_in}/
+                      {view.checkin_summary.total}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Still waiting</dt>
+                    <dd>{view.checkin_summary.remaining}</dd>
+                  </div>
+                </dl>
+              </section>
+
+              <section className="checkin-card">
+                <div className="checkin-section-head">
+                  <h3>Remaining teammates</h3>
+                  <span>
+                    {remainingMembers.length === 0
+                      ? "All clear"
+                      : `${remainingMembers.length} left`}
+                  </span>
+                </div>
+                {remainingMembers.length === 0 ? (
+                  <p className="checkin-muted">
+                    Every teammate on record is checked in.
+                  </p>
                 ) : (
-                  <button
-                    type="button"
-                    className="checkin-confirm"
-                    onClick={() => void handleCheckIn()}
-                    disabled={submitting}
-                  >
-                    {submitting ? "Checking in…" : "Mark as checked in"}
-                  </button>
+                  <ul className="checkin-members">
+                    {remainingMembers.map((member) => (
+                      <li key={member.hacker_id}>
+                        <div>
+                          <strong>{member.full_name}</strong>
+                          <span>
+                            {roleLabel(member.role)} · {member.hacker_id || "—"}
+                          </span>
+                        </div>
+                        <em className="checkin-badge checkin-badge--no">
+                          NOT CHECKED IN
+                        </em>
+                      </li>
+                    ))}
+                  </ul>
                 )}
-              </div>
-            </section>
+              </section>
 
-            <section className="checkin-card checkin-card--team">
-              <div className="checkin-team-head">
-                <div>
-                  <p className="checkin-kicker">Team</p>
-                  <h3>{view.team.team_name}</h3>
+              <section className="checkin-card">
+                <div className="checkin-section-head">
+                  <h3>Checked in</h3>
+                  <span>{checkedMembers.length}</span>
                 </div>
-                <div className="checkin-progress" aria-hidden="true">
-                  <div
-                    className="checkin-progress__fill"
-                    style={{ width: `${progressPct}%` }}
-                  />
-                </div>
-              </div>
-
-              <dl className="checkin-meta">
-                <div>
-                  <dt>Team code</dt>
-                  <dd>{view.team.team_code}</dd>
-                </div>
-                <div>
-                  <dt>Checked in</dt>
-                  <dd>
-                    {view.checkin_summary.checked_in}/
-                    {view.checkin_summary.total}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Still waiting</dt>
-                  <dd>{view.checkin_summary.remaining}</dd>
-                </div>
-              </dl>
-            </section>
-
-            <section className="checkin-card">
-              <div className="checkin-section-head">
-                <h3>Remaining teammates</h3>
-                <span>
-                  {remainingMembers.length === 0
-                    ? "All clear"
-                    : `${remainingMembers.length} left`}
-                </span>
-              </div>
-              {remainingMembers.length === 0 ? (
-                <p className="checkin-muted">
-                  Every teammate on record is checked in.
-                </p>
-              ) : (
-                <ul className="checkin-members">
-                  {remainingMembers.map((member) => (
-                    <li key={member.hacker_id}>
-                      <div>
-                        <strong>{member.full_name}</strong>
-                        <span>
-                          {roleLabel(member.role)} · {member.hacker_id || "—"}
-                        </span>
-                      </div>
-                      <em className="checkin-badge checkin-badge--no">
-                        NOT CHECKED IN
-                      </em>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-
-            <section className="checkin-card">
-              <div className="checkin-section-head">
-                <h3>Checked in</h3>
-                <span>{checkedMembers.length}</span>
-              </div>
-              {checkedMembers.length === 0 ? (
-                <p className="checkin-muted">No check-ins yet for this team.</p>
-              ) : (
-                <ul className="checkin-members">
-                  {checkedMembers.map((member) => (
-                    <li key={member.hacker_id}>
-                      <div>
-                        <strong>{member.full_name}</strong>
-                        <span>
-                          {roleLabel(member.role)} · {member.hacker_id || "—"}
-                        </span>
-                      </div>
-                      <em className="checkin-badge checkin-badge--yes">
-                        CHECKED IN
-                        {member.checked_in_at
-                          ? ` · ${formatCheckinTime(member.checked_in_at)}`
-                          : ""}
-                      </em>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          </>
-        ) : null}
-      </div>
-    </main>
+                {checkedMembers.length === 0 ? (
+                  <p className="checkin-muted">No check-ins yet for this team.</p>
+                ) : (
+                  <ul className="checkin-members">
+                    {checkedMembers.map((member) => (
+                      <li key={member.hacker_id}>
+                        <div>
+                          <strong>{member.full_name}</strong>
+                          <span>
+                            {roleLabel(member.role)} · {member.hacker_id || "—"}
+                          </span>
+                        </div>
+                        <em className="checkin-badge checkin-badge--yes">
+                          CHECKED IN
+                          {member.checked_in_at
+                            ? ` · ${formatCheckinTime(member.checked_in_at)}`
+                            : ""}
+                        </em>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </>
+          ) : null}
+        </div>
+      </main>
     </div>
   );
 }
