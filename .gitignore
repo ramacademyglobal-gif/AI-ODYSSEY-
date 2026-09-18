@@ -33,6 +33,12 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# backend runtime / secrets (source is in /backend)
+/backend/node_modules
+/backend/dist
+/backend/secrets
+/backend/uploads
+
 # vercel
 .vercel
 

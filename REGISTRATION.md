@@ -1,43 +1,65 @@
-# Registration backend (required for /register to save teams & payment proof)
+# Registration backend (required for /register + /checkin)
 
-The marketing site UI for registration lives at `/register`.
-Submitting registration talks to the separate Express API in:
+The Express API lives in this repo at [`backend/`](./backend).
+It uses **Supabase** for database + payment screenshot storage.
 
-`c:\Users\THARUN\Downloads\registration_page\ai-odyssey-24\backend`
+Supabase alone is not enough — this API must also be running.
 
 ## Local testing
 
-1. Start the registration backend:
+1. Copy env file and fill real values (from your existing backend `.env`):
    ```bash
-   cd "c:\Users\THARUN\Downloads\registration_page\ai-odyssey-24\backend"
+   cd backend
+   copy .env.example .env
+   ```
+
+2. Start API:
+   ```bash
+   npm install
    npm run dev
    ```
-   Health check: http://localhost:5000/api/health
+   Health: http://localhost:5000/api/health
 
-2. In the Odyssey site, set API URL (optional if using default):
-   Create `.env.local`:
+3. In Odyssey site root, create `.env.local`:
    ```
    NEXT_PUBLIC_REGISTRATION_API_URL=http://localhost:5000/api
    ```
 
-3. Start Odyssey:
+4. In `backend/.env` set:
+   ```
+   FRONTEND_URL=http://localhost:3000
+   ```
+
+5. Start site:
    ```bash
-   cd "c:\Users\THARUN\Downloads\hack (2)\hack"
    npm run dev
    ```
    Open http://localhost:3000/register
 
-4. Backend CORS: set `FRONTEND_URL=http://localhost:3000` in the backend `.env`
-   so the Odyssey site can call the API.
+## Host API on Render (recommended next step)
 
-## Production (Vercel)
+1. Push is already in this GitHub repo under `/backend`.
+2. Render → **New → Web Service** → connect `AI-ODYSSEY-` repo.
+3. Settings:
+   - **Root Directory:** `backend`
+   - **Build Command:** `npm install && npm run build`
+   - **Start Command:** `npm start`
+4. Environment variables (copy from your local `backend/.env`, never commit them):
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY`
+   - `FRONTEND_URL` = `https://ai-odyssey-jade.vercel.app` (or your site URL)
+   - `JWT_SECRET`
+   - `ADMIN_EMAIL` / `ADMIN_USERNAME` / `ADMIN_PASSWORD_HASH` (if used)
+   - `PAYMENT_STORAGE_BUCKET` = `payment-proofs`
+   - `JWT_EXPIRES_IN` = `8h`
+5. After deploy, copy the Render URL, e.g. `https://YOUR-SERVICE.onrender.com`
+6. In **Vercel** project env, set:
+   ```
+   NEXT_PUBLIC_REGISTRATION_API_URL=https://YOUR-SERVICE.onrender.com/api
+   ```
+   Then redeploy the website.
 
-1. Deploy the Express backend somewhere that stays online
-   (Railway, Render, Fly.io, VPS, etc.) with Supabase + payment Drive secrets configured.
-2. In the Odyssey Vercel project, set:
-   `NEXT_PUBLIC_REGISTRATION_API_URL=https://YOUR-API-HOST/api`
-3. On the backend, set `FRONTEND_URL` to your Odyssey production URL
-   (e.g. https://ai-odyssey-jade.vercel.app).
-4. Redeploy Odyssey.
+## SQL (Supabase)
 
-Register buttons on the site already point to `/register` (same domain).
+Schema + migrations are under [`backend/database/`](./backend/database).
+Run them in the Supabase SQL editor if your project is not already set up.
