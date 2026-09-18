@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 import { EB_Garamond, Source_Serif_4, JetBrains_Mono, Inter } from "next/font/google";
 import "./globals.css";
-import Navbar from "@/components/common/Navbar";
-import Footer from "@/components/common/Footer";
-import CustomCursor from "@/components/common/CustomCursor";
-import OpeningIntro from "@/components/common/OpeningIntro";
+import { SiteChrome } from "@/components/common/SiteChrome";
 import { EVENT_CONFIG } from "@/config/event";
 
 const ebGaramond = EB_Garamond({
@@ -66,13 +63,7 @@ export default function RootLayout({
       className={`dark scroll-smooth ${ebGaramond.variable} ${sourceSerif.variable} ${jetbrains.variable} ${inter.variable}`}
     >
       <body className="bg-[var(--bg-primary)] text-[var(--text-primary)] antialiased selection:bg-[var(--accent)] selection:text-[var(--bg-secondary)] overflow-x-hidden font-serif min-h-screen flex flex-col">
-        <div className="relative bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen overflow-x-hidden font-serif flex flex-col">
-          <OpeningIntro />
-          <CustomCursor />
-          <Navbar />
-          <main className="relative z-10 w-full flex-grow">{children}</main>
-          <Footer />
-        </div>
+        <SiteChrome>{children}</SiteChrome>
       </body>
     </html>
   );

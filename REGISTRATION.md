@@ -63,3 +63,14 @@ Supabase alone is not enough — this API must also be running.
 
 Schema + migrations are under [`backend/database/`](./backend/database).
 Run them in the Supabase SQL editor if your project is not already set up.
+
+## Organizer admin (same Odyssey site)
+
+Not linked in the public navbar. Open directly:
+
+- Login: `/admin/login` (e.g. https://ai-odyssey-jade.vercel.app/admin/login)
+- Dashboard: `/admin`
+- Participants: `/admin/participants`
+- Check-in: `/admin/checkin`
+
+Uses `NEXT_PUBLIC_REGISTRATION_API_URL` and Render `ADMIN_*` / `JWT_SECRET` credentials.
