@@ -8,7 +8,7 @@ const ITEMS = [
   { tag: "CITY", text: "RAJAPALAYAM · TAMIL NADU", highlight: false },
   { tag: "MISSION", text: "ONE MISSION. INFINITE POSSIBILITIES.", highlight: true },
   { tag: "TEAMS", text: "3–4 MEMBER TEAMS", highlight: false },
-  { tag: "REGISTER", text: "GOOGLE FORM REGISTRATION OPEN", highlight: true },
+  { tag: "REGISTER", text: "IN-SITE REGISTRATION OPEN", highlight: true },
 ];
 
 export default function InfiniteTicker() {

@@ -35,6 +35,8 @@ export interface EventConfig {
   registrationOpen: string | null;
   registrationDeadline: string | null;
   googleFormRegistrationUrl: string;
+  /** Registration API base including `/api` (e.g. http://localhost:5000/api) */
+  registrationApiUrl?: string;
   venueName: string | null;
   venueAddress: string | null;
   city: string | null;
@@ -72,8 +74,8 @@ export const EVENT_CONFIG: EventConfig = {
   registrationOpen: "2026-09-01T00:00:00+05:30",
   registrationDeadline: "2026-09-27T23:59:59+05:30",
 
-  googleFormRegistrationUrl:
-    "https://docs.google.com/forms/d/e/1FAIpQLSc3Q9zYlCYFIVPGY02tZSwfRTgAu-hrsiwzT3DSRjBe89oHsg/viewform",
+  googleFormRegistrationUrl: "/register",
+  registrationApiUrl: process.env.NEXT_PUBLIC_REGISTRATION_API_URL || "http://localhost:5000/api",
 
   venueName: "Ramco Institute of Technology",
   venueAddress: null,
@@ -83,7 +85,7 @@ export const EVENT_CONFIG: EventConfig = {
 
   teamMin: 3,
   teamMax: 4,
-  registrationFee: "₹100 per person",
+  registrationFee: "₹100 per person (₹300 for 3 / ₹400 for 4)",
   expectedParticipants: null,
   expectedTeams: null,
   challengeCount: 10,

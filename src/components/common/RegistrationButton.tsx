@@ -1,6 +1,6 @@
 "use client";
 
-import { EVENT_CONFIG } from "@/config/event";
+import Link from "next/link";
 import { clsx } from "clsx";
 
 interface RegistrationButtonProps {
@@ -18,18 +18,6 @@ export default function RegistrationButton({
   className,
   showIcon = true,
 }: RegistrationButtonProps) {
-  const targetUrl = EVENT_CONFIG.googleFormRegistrationUrl?.trim();
-  if (!targetUrl) {
-    return (
-      <button
-        disabled
-        className="font-mono-custom text-xs text-[var(--text-muted)] tracking-widest uppercase opacity-50"
-      >
-        Registrations Opening Soon
-      </button>
-    );
-  }
-
   const sizeCls = {
     sm: "text-[10px]",
     md: "text-xs",
@@ -38,10 +26,8 @@ export default function RegistrationButton({
 
   if (variant === "solid") {
     return (
-      <a
-        href={targetUrl}
-        target="_blank"
-        rel="noopener noreferrer"
+      <Link
+        href="/register"
         className={clsx(
           "group inline-flex items-center justify-center gap-3 font-mono-custom font-semibold tracking-[0.18em] uppercase",
           "bg-[var(--accent)] text-[var(--bg-secondary)] border border-[var(--accent)]",
@@ -52,49 +38,45 @@ export default function RegistrationButton({
           sizeCls,
           className
         )}
-        aria-label={`${label} (opens Google Form in a new tab)`}
+        aria-label={label}
       >
         <span>{label}</span>
         {showIcon && (
           <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
         )}
-      </a>
+      </Link>
     );
   }
 
   if (variant === "origin" || variant === "text" || variant === "outline") {
     return (
-      <a
-        href={targetUrl}
-        target="_blank"
-        rel="noopener noreferrer"
+      <Link
+        href="/register"
         className={clsx(
           "font-mono-custom text-[var(--text-muted)] hover:text-[var(--accent)] border-b border-[var(--border-primary)] hover:border-[var(--accent)] pb-1 tracking-widest uppercase transition-all inline-flex items-center gap-2 group",
           sizeCls,
           className
         )}
-        aria-label={`${label} (opens Google Form in a new tab)`}
+        aria-label={label}
       >
         <span>{label}</span>
         {showIcon && <span className="group-hover:translate-x-1 transition-transform">→</span>}
-      </a>
+      </Link>
     );
   }
 
   return (
-    <a
-      href={targetUrl}
-      target="_blank"
-      rel="noopener noreferrer"
+    <Link
+      href="/register"
       className={clsx(
         "inline-flex items-center justify-center gap-2 font-mono-custom tracking-widest uppercase transition-all border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-[var(--bg-secondary)] px-5 py-3 min-h-11",
         sizeCls,
         className
       )}
-      aria-label={`${label} (opens Google Form in a new tab)`}
+      aria-label={label}
     >
       <span>{label}</span>
       {showIcon && <span className="transition-transform group-hover:translate-x-1">→</span>}
-    </a>
+    </Link>
   );
 }

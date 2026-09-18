@@ -1,0 +1,237 @@
+/* Registration motion — reveal + route veil (no blur) */
+
+:root {
+  --motion-route: 1s;
+  --motion-page: 0.55s;
+  --motion-reveal: 0.7s;
+}
+
+.route-veil {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  background:
+    radial-gradient(ellipse 60% 40% at 50% 0%, rgba(255, 77, 28, 0.38), transparent 60%),
+    #070707;
+}
+
+.route-veil.is-active {
+  pointer-events: none;
+  visibility: visible;
+  animation: route-veil-cycle var(--motion-route) ease-in-out both;
+}
+
+.route-veil__beam {
+  position: absolute;
+  inset: -20% -10%;
+  background: linear-gradient(
+    115deg,
+    transparent 28%,
+    rgba(255, 77, 28, 0.22) 46%,
+    rgba(255, 106, 61, 0.5) 50%,
+    rgba(255, 77, 28, 0.22) 54%,
+    transparent 72%
+  );
+  transform: translateX(-40%);
+  animation: route-beam var(--motion-route) ease-in-out both;
+}
+
+.route-veil__scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #ff4d1c, #ff6a3d, transparent);
+  box-shadow: 0 0 22px rgba(255, 77, 28, 0.9);
+  animation: route-scan var(--motion-route) ease-in-out both;
+}
+
+.route-veil__label {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: var(--font-mono, "JetBrains Mono", monospace);
+  font-size: 0.75rem;
+  letter-spacing: 0.42em;
+  color: rgba(242, 240, 235, 0.9);
+  text-transform: uppercase;
+  animation: route-label var(--motion-route) ease-in-out both;
+}
+
+.page-stage {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  animation: page-stage-in var(--motion-page) cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.odyssey-reg,
+.checkin-page,
+.reg-portal,
+.checkin-shell {
+  animation: none;
+}
+
+@keyframes route-veil-cycle {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes route-beam {
+  0% {
+    transform: translateX(-60%) skewX(-12deg);
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(60%) skewX(-12deg);
+    opacity: 0;
+  }
+}
+
+@keyframes route-scan {
+  0% {
+    top: 0;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes route-label {
+  0%,
+  100% {
+    opacity: 0;
+    letter-spacing: 0.58em;
+  }
+  30%,
+  70% {
+    opacity: 1;
+    letter-spacing: 0.42em;
+  }
+}
+
+@keyframes page-stage-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Scroll reveals — crisp, no blur */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity var(--motion-reveal) cubic-bezier(0.22, 1, 0.36, 1),
+    transform var(--motion-reveal) cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+[data-reveal="left"] {
+  transform: translateX(-24px);
+}
+
+[data-reveal="right"] {
+  transform: translateX(24px);
+}
+
+[data-reveal="scale"] {
+  transform: scale(0.96);
+}
+
+[data-reveal].is-inview {
+  opacity: 1;
+  transform: none;
+}
+
+.odyssey-reg .primary-button,
+.odyssey-reg .secondary-button,
+.odyssey-reg .od-btn,
+.checkin-page .primary-button,
+.checkin-page .secondary-button {
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.28s ease,
+    background-color 0.28s ease,
+    border-color 0.28s ease,
+    color 0.28s ease,
+    opacity 0.28s ease;
+}
+
+.odyssey-reg .primary-button:hover:not(:disabled),
+.odyssey-reg .od-btn--primary:hover {
+  transform: translateY(-2px);
+}
+
+.odyssey-reg .primary-button:active:not(:disabled),
+.odyssey-reg .od-btn:active,
+.odyssey-reg .secondary-button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.985);
+}
+
+.odyssey-reg .team-mode-card {
+  transition:
+    transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.35s ease,
+    box-shadow 0.35s ease,
+    background-color 0.35s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-veil,
+  .route-veil.is-active,
+  .route-veil__beam,
+  .route-veil__scan,
+  .route-veil__label,
+  .page-stage,
+  .odyssey-reg,
+  .checkin-page,
+  .reg-portal,
+  [data-reveal] {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    visibility: visible !important;
+    animation-delay: 0s !important;
+  }
+
+  .route-veil {
+    display: none;
+  }
+
+  .odyssey-reg .primary-button:hover:not(:disabled),
+  .odyssey-reg .od-btn--primary:hover,
+  .odyssey-reg .team-mode-card:hover {
+    transform: none !important;
+  }
+}

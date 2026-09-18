@@ -5,7 +5,7 @@ export const ANNOUNCEMENTS: Announcement[] = [
     id: "ANN-01",
     timestamp: "Pre-Event Announcement",
     title: "Official Registration Portal Open",
-    content: "Team registrations for AI Odyssey are officially live via our Google Form. Secure your spot before the deadline!",
+    content: "Team registrations for AI Odyssey are officially live on this website. Secure your spot before the deadline!",
     isUrgent: false,
     author: "Mission Control"
   },

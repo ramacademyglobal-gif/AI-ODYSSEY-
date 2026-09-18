@@ -40,7 +40,7 @@ export default function ContactPage() {
             </article>
           ))}
         </div>
-        <RegistrationButton label="Register via Google Form" variant="gold" />
+        <RegistrationButton label="Register now" variant="gold" />
       </section>
     </div>
   );

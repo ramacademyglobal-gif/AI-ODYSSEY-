@@ -12,6 +12,7 @@ const LINKS = [
   { href: "/about", label: "ABOUT" },
   { href: "/challenges", label: "CHALLENGES" },
   { href: "/schedule", label: "SCHEDULE" },
+  { href: "/register", label: "REGISTER" },
   { href: "/rules", label: "RULES" },
   { href: "/prizes", label: "PRIZES" },
   { href: "/venue", label: "VENUE" },
