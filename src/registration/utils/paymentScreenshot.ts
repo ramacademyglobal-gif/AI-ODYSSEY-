@@ -315,17 +315,43 @@ function looksLikePaymentScreenshotLayout(
   return true
 }
 
-function imageToCanvas(img: HTMLImageElement): HTMLCanvasElement {
-  const maxW = 900
+function imageToCanvas(
+  img: HTMLImageElement,
+  options?: { invert?: boolean; maxW?: number },
+): HTMLCanvasElement {
+  const maxW = options?.maxW ?? 900
   const scale = Math.min(1, maxW / img.width)
   const canvas = document.createElement('canvas')
   canvas.width = Math.max(1, Math.round(img.width * scale))
   canvas.height = Math.max(1, Math.round(img.height * scale))
   const ctx = canvas.getContext('2d')
   if (ctx) {
-    // Slight contrast boost helps dark-mode OCR
-    ctx.filter = 'contrast(1.15) brightness(1.05)'
+    const filters = ['contrast(1.2)', 'brightness(1.08)']
+    if (options?.invert) filters.push('invert(1)')
+    ctx.filter = filters.join(' ')
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    ctx.filter = 'none'
+  }
+  return canvas
+}
+
+/** Crop the usual GPay/PhonePe amount band (large ₹300 / ₹400). */
+function amountBandCanvas(img: HTMLImageElement): HTMLCanvasElement {
+  const srcW = img.naturalWidth || img.width
+  const srcH = img.naturalHeight || img.height
+  const top = Math.floor(srcH * 0.1)
+  const height = Math.max(40, Math.floor(srcH * 0.22))
+  const left = Math.floor(srcW * 0.08)
+  const width = Math.max(40, Math.floor(srcW * 0.84))
+
+  const canvas = document.createElement('canvas')
+  // Upscale — large display fonts OCR better when bigger
+  canvas.width = 720
+  canvas.height = Math.max(80, Math.round((height / width) * 720))
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    ctx.filter = 'grayscale(1) contrast(1.35) brightness(1.1) invert(1)'
+    ctx.drawImage(img, left, top, width, height, 0, 0, canvas.width, canvas.height)
     ctx.filter = 'none'
   }
   return canvas
@@ -343,7 +369,8 @@ function hasVisibleTransactionId(ocrText: string): boolean {
     /txn\s*(id|ref)/i.test(text) ||
     /payment\s*id/i.test(text) ||
     /bank\s*reference/i.test(text) ||
-    /google\s*transaction\s*id/i.test(text)
+    /google\s*transaction\s*id/i.test(text) ||
+    /phonepe\s*transaction\s*id/i.test(text)
 
   // Typical UPI UTR / ref codes are long alphanumeric tokens (12+).
   const compact = text.replace(/\s/g, '')
@@ -356,21 +383,31 @@ function looksLikeUpiPaymentCopy(ocrText: string): boolean {
   return (
     /upi/i.test(ocrText) ||
     /google\s*pay|gpay|phonepe|paytm|bhim/i.test(ocrText) ||
-    /payment\s+(of|successful|completed)|completed/i.test(ocrText) ||
+    /payment\s+(of|successful|completed)|completed|transaction\s+successful/i.test(
+      ocrText,
+    ) ||
     /transaction\s*id|utr/i.test(ocrText) ||
-    /paid\s+to|sent\s+to|receiver/i.test(ocrText)
+    /paid\s+to|sent\s+to|receiver|debited\s+from/i.test(ocrText)
   )
 }
 
-/** Pull ₹300 / ₹400 (and other whole-rupee amounts) from OCR text. */
+/**
+ * Pull paid amounts from OCR.
+ * Tesseract often misreads ₹ as %, ¥, R, etc. — treat those as currency.
+ */
 export function extractRupeeAmounts(ocrText: string): number[] {
   const found = new Set<number>()
-  const text = ocrText.replace(/\u20b9/g, '₹')
+  const text = ocrText
+    .replace(/\u20b9/g, '₹')
+    .replace(/[|]/g, ' ')
 
+  const currency = String.raw`(?:[₹%¥€£$]|rs\.?|inr|inr\.?)`
   const patterns: RegExp[] = [
-    /(?:₹|rs\.?|inr)\s*([0-9]{1,5})(?:\.[0-9]{1,2})?/gi,
+    new RegExp(`${currency}\\s*([0-9]{1,5})(?:\\.[0-9]{1,2})?`, 'gi'),
     /\b([0-9]{1,5})(?:\.[0-9]{1,2})?\s*(?:rs\.?|inr|rupees)\b/gi,
-    /(?:paid|amount|total|sent)\s*(?:of|:)?\s*(?:₹|rs\.?)?\s*([0-9]{1,5})(?:\.[0-9]{1,2})?/gi,
+    /(?:paid|amount|total|sent|debited)\s*(?:of|from|:)?\s*(?:[₹%¥]|rs\.?)?\s*([0-9]{1,5})(?:\.[0-9]{1,2})?/gi,
+    // "Tharun %300" / name then amount on PhonePe rows
+    /[A-Za-z]{2,}\s+(?:[₹%¥]|rs\.?)?\s*([34]00)(?:\.0+)?\b/g,
   ]
 
   for (const pattern of patterns) {
@@ -384,10 +421,19 @@ export function extractRupeeAmounts(ocrText: string): number[] {
     }
   }
 
-  // Standalone large display amount near top of OCR (common on GPay)
-  const lone = text.match(/(?:^|\n)\s*(?:₹|rs\.?)?\s*([34]00)(?:\.0+)?\s*(?:\n|$)/im)
-  if (lone?.[1]) {
-    found.add(Number(lone[1]))
+  // Bare team fees — only when this looks like a UPI receipt (avoid random 300s)
+  const hasCurrencyGlyph = /[₹%¥€£$]|rs\.?|inr/i.test(text)
+  if (looksLikeUpiPaymentCopy(text) || found.size > 0 || hasCurrencyGlyph) {
+    const bare = text.matchAll(/\b([34]00)(?:\.0+)?\b/g)
+    for (const m of bare) {
+      found.add(Number(m[1]))
+    }
+  }
+
+  // Digit-only OCR band sometimes returns just "300" / "400"
+  const trimmed = text.replace(/\s+/g, ' ').trim()
+  if (/^(?:[₹%¥]|rs\.?)?\s*[34]00(?:\.0+)?$/i.test(trimmed)) {
+    found.add(Number(trimmed.replace(/\D/g, '').slice(0, 3)))
   }
 
   return [...found]
@@ -402,31 +448,55 @@ export function resolvePaidTeamFee(
     if (teamFees.includes(expected)) {
       return { ok: true, amount: expected }
     }
-    // Prefer reporting a wrong team fee if present, else any other detected amount
     const wrongFee = teamFees.find((a) => a !== expected) ?? null
     const other = amounts.find((a) => a !== expected) ?? null
     return { ok: false, amount: wrongFee ?? other }
   }
 
-  if (teamFees.length === 1) {
-    return { ok: true, amount: teamFees[0]! }
-  }
-  if (teamFees.length > 1) {
-    // Ambiguous — accept if only team fees appear
+  if (teamFees.length >= 1) {
     return { ok: true, amount: teamFees[0]! }
   }
   return { ok: false, amount: amounts[0] ?? null }
 }
 
-async function extractScreenshotText(img: HTMLImageElement): Promise<string> {
-  const canvas = imageToCanvas(img)
+async function extractScreenshotText(
+  img: HTMLImageElement,
+  isDarkUi: boolean,
+): Promise<string> {
   const worker = await createWorker('eng')
+  const chunks: string[] = []
+
   try {
-    const result = await worker.recognize(canvas)
-    return result.data.text || ''
+    const primary = imageToCanvas(img, { invert: false })
+    chunks.push((await worker.recognize(primary)).data.text || '')
+
+    // Dark UPI screens: also OCR an inverted copy (white-on-black → black-on-white)
+    if (isDarkUi) {
+      const inverted = imageToCanvas(img, { invert: true })
+      chunks.push((await worker.recognize(inverted)).data.text || '')
+    }
+
+    // Dedicated amount-band pass (GPay large ₹300 often skipped in full-page OCR)
+    const band = amountBandCanvas(img)
+    await worker.setParameters({
+      // PSM.SPARSE_TEXT = 11 — finds large isolated amounts
+      tessedit_pageseg_mode: '11' as never,
+      tessedit_char_whitelist: '0123456789',
+    })
+    chunks.push((await worker.recognize(band)).data.text || '')
+
+    // Reset params and try currency-aware band once more
+    await worker.setParameters({
+      tessedit_pageseg_mode: '6' as never,
+      tessedit_char_whitelist: '',
+    })
+    const bandFull = amountBandCanvas(img)
+    chunks.push((await worker.recognize(bandFull)).data.text || '')
   } finally {
     await worker.terminate()
   }
+
+  return chunks.join('\n')
 }
 
 /**
@@ -508,9 +578,11 @@ export async function validatePaymentScreenshot(
     return { ok: false, message: REJECT_SUMMARY_ONLY }
   }
 
+  const isDarkUi = stats.darkRatio > 0.35 || stats.meanLuminance < 0.42
+
   let ocrText: string
   try {
-    ocrText = await extractScreenshotText(uploaded)
+    ocrText = await extractScreenshotText(uploaded, isDarkUi)
   } catch {
     URL.revokeObjectURL(previewUrl)
     return {
