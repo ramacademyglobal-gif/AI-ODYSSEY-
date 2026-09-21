@@ -26,6 +26,29 @@ export type PaymentScreenshotCheck = {
   ok: boolean
   message?: string
   previewUrl?: string
+  detectedAmount?: number | null
+}
+
+export type TeamFeeAmount = 300 | 400
+
+export function expectedFeeForTeamSize(teamSize: 3 | 4 | null | undefined): TeamFeeAmount | null {
+  if (teamSize === 3) return 300
+  if (teamSize === 4) return 400
+  return null
+}
+
+function rejectWrongAmount(
+  expected: TeamFeeAmount | null,
+  found: number | null,
+): string {
+  if (expected === 300 || expected === 400) {
+    return `Payment screenshot must show ₹${expected} (team of ${expected === 300 ? 3 : 4}). ${
+      found != null ? `Detected ₹${found} instead.` : 'Could not read ₹300 or ₹400 from this image.'
+    }`
+  }
+  return `Payment screenshot must show ₹300 or ₹400 (full team fee). ${
+    found != null ? `Detected ₹${found} instead.` : 'Could not read the paid amount.'
+  }`
 }
 
 function loadImageFromFile(file: File): Promise<HTMLImageElement> {
@@ -100,6 +123,8 @@ type LayoutStats = {
   horizontalBandScore: number
   uniqueBuckets: number
   localVariance: number
+  darkRatio: number
+  meanLuminance: number
 }
 
 function analyzeLayout(img: HTMLImageElement): LayoutStats {
@@ -120,6 +145,8 @@ function analyzeLayout(img: HTMLImageElement): LayoutStats {
       horizontalBandScore: 0,
       uniqueBuckets: 0,
       localVariance: 1,
+      darkRatio: 0,
+      meanLuminance: 0.5,
     }
   }
 
@@ -136,6 +163,8 @@ function analyzeLayout(img: HTMLImageElement): LayoutStats {
   let topGreen = 0
   let topPixels = 0
   let bottomPhoto = 0
+  let dark = 0
+  let lumSum = 0
   const buckets = new Set<number>()
   let varianceSum = 0
   let varianceCount = 0
@@ -150,8 +179,10 @@ function analyzeLayout(img: HTMLImageElement): LayoutStats {
       const b = data[i + 2]!
       const lum = r * 0.299 + g * 0.587 + b * 0.114
       rowSum += lum
+      lumSum += lum
       buckets.add(((r >> 5) << 6) | ((g >> 5) << 3) | (b >> 5))
 
+      if (lum < 55) dark += 1
       if (isSkinTone(r, g, b)) skin += 1
 
       if (x < w - 1 && y < h - 1) {
@@ -182,21 +213,26 @@ function analyzeLayout(img: HTMLImageElement): LayoutStats {
       const max = Math.max(r, g, b)
       const min = Math.min(r, g, b)
       const sat = max === 0 ? 0 : (max - min) / max
+      // Light + dark UPI chrome (blues / greens / purple accents / near-white)
       if (
-        (b > 120 && b > r + 15 && b >= g) ||
-        (g > 120 && g > r + 15 && g > b + 10) ||
-        (r > 90 && b > 120 && g < 110) ||
-        (r > 220 && g > 220 && b > 220 && sat < 0.12)
+        (b > 90 && b > r + 12 && b >= g - 5) ||
+        (g > 100 && g > r + 15 && g > b + 8) ||
+        (r > 70 && b > 100 && g < 120) ||
+        (r > 200 && g > 200 && b > 200 && sat < 0.15) ||
+        (r < 40 && g < 40 && b < 40)
       ) {
         uiChrome += 1
       }
 
-      const isGreen = g > 130 && g > r + 25 && g > b + 15
+      // Light + dark success greens (incl. muted checkmarks)
+      const isGreen =
+        (g > 110 && g > r + 18 && g > b + 10) ||
+        (g > 90 && g > r + 25 && g > b + 20)
       if (isGreen) successGreen += 1
 
       if (y < topLimit) {
         topPixels += 1
-        if (g > 140 && g > r + 20 && g > b + 10) topGreen += 1
+        if (g > 120 && g > r + 15 && g > b + 8) topGreen += 1
       }
     }
     rowLum[y] = rowSum / w
@@ -204,7 +240,7 @@ function analyzeLayout(img: HTMLImageElement): LayoutStats {
 
   let bandJumps = 0
   for (let y = 1; y < h; y++) {
-    if (Math.abs((rowLum[y] ?? 0) - (rowLum[y - 1] ?? 0)) > 18) {
+    if (Math.abs((rowLum[y] ?? 0) - (rowLum[y - 1] ?? 0)) > 12) {
       bandJumps += 1
     }
   }
@@ -225,6 +261,8 @@ function analyzeLayout(img: HTMLImageElement): LayoutStats {
     horizontalBandScore: bandJumps / h,
     uniqueBuckets: buckets.size,
     localVariance: varianceCount ? varianceSum / varianceCount : 0,
+    darkRatio: dark / total,
+    meanLuminance: lumSum / total / 255,
   }
 }
 
@@ -237,29 +275,59 @@ function isSummaryOnlySuccessScreen(stats: LayoutStats): boolean {
   )
 }
 
+/**
+ * Soft layout gate for light + dark UPI apps.
+ * OCR (txn + amount) is the authoritative check afterward.
+ */
 function looksLikePaymentScreenshotLayout(
   stats: LayoutStats,
   aspect: number,
 ): boolean {
-  if (aspect < 1.15) return false
-  if (stats.skinRatio > 0.045) return false
-  if (stats.flatRatio < 0.22) return false
-  if (stats.uiChromeRatio < 0.08 && stats.successGreenRatio < 0.015) {
+  // Allow near-square crops from share sheets; still prefer portrait.
+  if (aspect < 0.85) return false
+  // Selfies / people photos
+  if (stats.skinRatio > 0.12) return false
+  // Completely noisy photos
+  if (stats.flatRatio < 0.08 && stats.uniqueBuckets > 140) return false
+
+  const isDarkUi = stats.darkRatio > 0.35 || stats.meanLuminance < 0.42
+  if (isDarkUi) {
+    // Dark GPay / PhonePe: low flat ratio is OK; need some structure or accent color
+    if (
+      stats.uiChromeRatio < 0.02 &&
+      stats.successGreenRatio < 0.004 &&
+      stats.horizontalBandScore < 0.02
+    ) {
+      return false
+    }
+    return true
+  }
+
+  // Light UPI screens
+  if (stats.flatRatio < 0.12) return false
+  if (
+    stats.uiChromeRatio < 0.04 &&
+    stats.successGreenRatio < 0.008 &&
+    stats.horizontalBandScore < 0.025
+  ) {
     return false
   }
-  if (stats.horizontalBandScore < 0.04) return false
-  if (stats.localVariance > 28 && stats.flatRatio < 0.3) return false
   return true
 }
 
 function imageToCanvas(img: HTMLImageElement): HTMLCanvasElement {
-  const maxW = 720
+  const maxW = 900
   const scale = Math.min(1, maxW / img.width)
   const canvas = document.createElement('canvas')
   canvas.width = Math.max(1, Math.round(img.width * scale))
   canvas.height = Math.max(1, Math.round(img.height * scale))
   const ctx = canvas.getContext('2d')
-  if (ctx) ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+  if (ctx) {
+    // Slight contrast boost helps dark-mode OCR
+    ctx.filter = 'contrast(1.15) brightness(1.05)'
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    ctx.filter = 'none'
+  }
   return canvas
 }
 
@@ -274,14 +342,80 @@ function hasVisibleTransactionId(ocrText: string): boolean {
     /reference\s*(no\.?|number|id)/i.test(text) ||
     /txn\s*(id|ref)/i.test(text) ||
     /payment\s*id/i.test(text) ||
-    /bank\s*reference/i.test(text)
+    /bank\s*reference/i.test(text) ||
+    /google\s*transaction\s*id/i.test(text)
 
-  // Typical UPI UTR / ref codes are long alphanumeric tokens.
-  const codeHit = /(?:^|[^A-Z0-9])[0-9A-Z]{12,}(?:[^A-Z0-9]|$)/i.test(
-    text.replace(/\s/g, ''),
-  )
+  // Typical UPI UTR / ref codes are long alphanumeric tokens (12+).
+  const compact = text.replace(/\s/g, '')
+  const codeHit = /(?:^|[^A-Z0-9])[0-9A-Z]{12,}(?:[^A-Z0-9]|$)/i.test(compact)
 
   return labelHit || codeHit
+}
+
+function looksLikeUpiPaymentCopy(ocrText: string): boolean {
+  return (
+    /upi/i.test(ocrText) ||
+    /google\s*pay|gpay|phonepe|paytm|bhim/i.test(ocrText) ||
+    /payment\s+(of|successful|completed)|completed/i.test(ocrText) ||
+    /transaction\s*id|utr/i.test(ocrText) ||
+    /paid\s+to|sent\s+to|receiver/i.test(ocrText)
+  )
+}
+
+/** Pull ₹300 / ₹400 (and other whole-rupee amounts) from OCR text. */
+export function extractRupeeAmounts(ocrText: string): number[] {
+  const found = new Set<number>()
+  const text = ocrText.replace(/\u20b9/g, '₹')
+
+  const patterns: RegExp[] = [
+    /(?:₹|rs\.?|inr)\s*([0-9]{1,5})(?:\.[0-9]{1,2})?/gi,
+    /\b([0-9]{1,5})(?:\.[0-9]{1,2})?\s*(?:rs\.?|inr|rupees)\b/gi,
+    /(?:paid|amount|total|sent)\s*(?:of|:)?\s*(?:₹|rs\.?)?\s*([0-9]{1,5})(?:\.[0-9]{1,2})?/gi,
+  ]
+
+  for (const pattern of patterns) {
+    pattern.lastIndex = 0
+    let match: RegExpExecArray | null
+    while ((match = pattern.exec(text)) !== null) {
+      const n = Number(match[1])
+      if (Number.isFinite(n) && n > 0 && n <= 100000) {
+        found.add(Math.round(n))
+      }
+    }
+  }
+
+  // Standalone large display amount near top of OCR (common on GPay)
+  const lone = text.match(/(?:^|\n)\s*(?:₹|rs\.?)?\s*([34]00)(?:\.0+)?\s*(?:\n|$)/im)
+  if (lone?.[1]) {
+    found.add(Number(lone[1]))
+  }
+
+  return [...found]
+}
+
+export function resolvePaidTeamFee(
+  amounts: number[],
+  expected: TeamFeeAmount | null,
+): { ok: boolean; amount: number | null } {
+  const teamFees = amounts.filter((a) => a === 300 || a === 400)
+  if (expected === 300 || expected === 400) {
+    if (teamFees.includes(expected)) {
+      return { ok: true, amount: expected }
+    }
+    // Prefer reporting a wrong team fee if present, else any other detected amount
+    const wrongFee = teamFees.find((a) => a !== expected) ?? null
+    const other = amounts.find((a) => a !== expected) ?? null
+    return { ok: false, amount: wrongFee ?? other }
+  }
+
+  if (teamFees.length === 1) {
+    return { ok: true, amount: teamFees[0]! }
+  }
+  if (teamFees.length > 1) {
+    // Ambiguous — accept if only team fees appear
+    return { ok: true, amount: teamFees[0]! }
+  }
+  return { ok: false, amount: amounts[0] ?? null }
 }
 
 async function extractScreenshotText(img: HTMLImageElement): Promise<string> {
@@ -296,13 +430,16 @@ async function extractScreenshotText(img: HTMLImageElement): Promise<string> {
 }
 
 /**
- * Validates payment confirmation screenshots.
- * Requires a layout with a clearly visible Transaction ID / UTR
- * (rejects summary-only “Payment Successful” screens).
+ * Validates payment confirmation screenshots (light + dark UPI apps).
+ * Requires visible Transaction ID / UTR and paid amount ₹300 or ₹400
+ * matching the selected team size when provided.
  */
 export async function validatePaymentScreenshot(
   file: File,
+  options?: { teamSize?: 3 | 4 | null },
 ): Promise<PaymentScreenshotCheck> {
+  const expected = expectedFeeForTeamSize(options?.teamSize ?? null)
+
   if (!ALLOWED_TYPES.has(file.type)) {
     return {
       ok: false,
@@ -334,7 +471,7 @@ export async function validatePaymentScreenshot(
   const previewUrl = uploaded.src
   const { width, height } = uploaded
 
-  if (width < 240 || height < 320) {
+  if (width < 200 || height < 280) {
     URL.revokeObjectURL(previewUrl)
     return { ok: false, message: REJECT_LAYOUT }
   }
@@ -379,7 +516,7 @@ export async function validatePaymentScreenshot(
     return {
       ok: false,
       message:
-        'Could not read text from this image. Upload a clearer screenshot where the Transaction ID / UTR is visible.',
+        'Could not read text from this image. Upload a clearer screenshot where the Transaction ID / UTR and amount are visible.',
     }
   }
 
@@ -392,7 +529,24 @@ export async function validatePaymentScreenshot(
     return { ok: false, message: REJECT_NO_TXN_VISIBLE }
   }
 
-  return { ok: true, previewUrl }
+  // Soft check: if OCR found almost no payment wording, still allow when txn + amount pass
+  if (!looksLikeUpiPaymentCopy(ocrText) && stats.skinRatio > 0.06) {
+    URL.revokeObjectURL(previewUrl)
+    return { ok: false, message: REJECT_LAYOUT }
+  }
+
+  const amounts = extractRupeeAmounts(ocrText)
+  const fee = resolvePaidTeamFee(amounts, expected)
+  if (!fee.ok) {
+    URL.revokeObjectURL(previewUrl)
+    return {
+      ok: false,
+      message: rejectWrongAmount(expected, fee.amount),
+      detectedAmount: fee.amount,
+    }
+  }
+
+  return { ok: true, previewUrl, detectedAmount: fee.amount }
 }
 
 export function validateTransactionId(value: string): string | null {

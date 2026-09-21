@@ -84,7 +84,7 @@ export function PostRegistrationActions({
 
     setChecking(true)
     try {
-      const result = await validatePaymentScreenshot(file)
+      const result = await validatePaymentScreenshot(file, { teamSize })
       if (!result.ok) {
         setScreenshotValid(false)
         setFileError(
@@ -183,8 +183,9 @@ export function PostRegistrationActions({
         </p>
         <p className="success-payment__hint">
           Scan the UPI QR for the full team amount
-          {teamTotal ? ` (₹${teamTotal})` : ''}, then upload a screenshot
-          showing the Transaction ID (min. 10 characters).
+          {teamTotal ? ` (₹${teamTotal})` : ' (₹300 or ₹400)'}. Upload a light-
+          or dark-mode payment receipt where the Transaction ID and paid amount
+          are clearly visible.
         </p>
         <ul className="success-payment__notices" aria-label="Payment rules">
           {EVENT_CONFIG.payment.notices.map((notice) => (
