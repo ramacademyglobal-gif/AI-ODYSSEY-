@@ -9,6 +9,7 @@ import {
 import { PostRegistrationActions } from "@/registration/components/PostRegistrationActions";
 import {
   ApiError,
+  checkRegistrationAvailability,
   getTeam,
   registerWithPaymentProof,
   type ApiParticipant,
@@ -296,7 +297,7 @@ function Registration() {
     return Object.keys(newErrors).length === 0
   }
 
-  const nextStep = () => {
+  const nextStep = async () => {
     if (submitting || actionLoading) return
 
     if (step === 1) {
@@ -309,9 +310,28 @@ function Registration() {
 
     if (step === 2) {
       if (!validateStep2()) return
-      setErrors({})
-      setStep(3)
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      try {
+        setActionLoading(true)
+        setErrors({})
+        await checkRegistrationAvailability({
+          email: form.leaderEmail.trim().toLowerCase(),
+          phone: form.leaderMobile.trim(),
+        })
+        setStep(3)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      } catch (err) {
+        const message = formatApiError(err)
+        const code = err instanceof ApiError ? err.code : undefined
+        if (code === 'EMAIL_TAKEN') {
+          setErrors({ leaderEmail: message })
+        } else if (code === 'PHONE_TAKEN') {
+          setErrors({ leaderMobile: message })
+        } else {
+          setErrors({ form: message })
+        }
+      } finally {
+        setActionLoading(false)
+      }
     }
   }
 
@@ -322,7 +342,7 @@ function Registration() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (submitting || actionLoading) return
 
@@ -339,9 +359,30 @@ function Registration() {
       return
     }
 
-    setErrors({})
-    setAwaitingPayment(true)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    try {
+      setActionLoading(true)
+      setErrors({})
+      await checkRegistrationAvailability({
+        email: form.leaderEmail.trim().toLowerCase(),
+        phone: form.leaderMobile.trim(),
+      })
+      setAwaitingPayment(true)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch (err) {
+      const message = formatApiError(err)
+      const code = err instanceof ApiError ? err.code : undefined
+      if (code === 'EMAIL_TAKEN') {
+        setErrors({ leaderEmail: message })
+        setStep(2)
+      } else if (code === 'PHONE_TAKEN') {
+        setErrors({ leaderMobile: message })
+        setStep(2)
+      } else {
+        setErrors({ form: message })
+      }
+    } finally {
+      setActionLoading(false)
+    }
   }
 
   const persistRegistrationAfterPayment = async (proof: {
@@ -729,7 +770,7 @@ function Registration() {
                 <button
                   type="button"
                   className="primary-button"
-                  onClick={nextStep}
+                  onClick={() => void nextStep()}
                   disabled={actionLoading}
                 >
                   CONTINUE →
@@ -879,10 +920,10 @@ function Registration() {
                 <button
                   type="button"
                   className="primary-button"
-                  onClick={nextStep}
+                  onClick={() => void nextStep()}
                   disabled={actionLoading}
                 >
-                  CONTINUE →
+                  {actionLoading ? 'CHECKING EMAIL…' : 'CONTINUE →'}
                 </button>
               </div>
             </section>
@@ -1090,16 +1131,16 @@ function Registration() {
                   type="button"
                   className="secondary-button step-back-button"
                   onClick={previousStep}
-                  disabled={submitting}
+                  disabled={submitting || actionLoading}
                 >
                   ← BACK
                 </button>
                 <button
                   type="submit"
                   className="primary-button"
-                  disabled={submitting}
+                  disabled={submitting || actionLoading}
                 >
-                  CONTINUE TO PAYMENT →
+                  {actionLoading ? 'CHECKING…' : 'CONTINUE TO PAYMENT →'}
                 </button>
               </div>
             </section>

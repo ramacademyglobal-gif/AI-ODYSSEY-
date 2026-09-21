@@ -10,7 +10,7 @@ const ALLOWED_TYPES = new Set([
 
 const MAX_BYTES = 5 * 1024 * 1024
 const MIN_TXN_LENGTH = 10
-const MAX_TXN_LENGTH = 64
+const MAX_TXN_LENGTH = 128
 const TXN_PATTERN = /^[A-Za-z0-9][A-Za-z0-9\s\-_/]*$/
 
 const REJECT_LAYOUT =

@@ -98,6 +98,20 @@ async function assertNoDuplicateParticipantFields(input: {
   }
 }
 
+/** Public pre-check: email / phone / optional txn — before payment upload. */
+export async function checkRegistrationAvailability(input: {
+  email: string;
+  phone: string;
+  payment_txn_id?: string;
+}): Promise<{ available: true }> {
+  await assertNoDuplicateParticipantFields({
+    email: input.email.trim().toLowerCase(),
+    phone: input.phone.trim().replace(/\s+/g, ""),
+    payment_txn_id: input.payment_txn_id?.trim(),
+  });
+  return { available: true };
+}
+
 function missingColumn(message: string | undefined, column: string): boolean {
   return new RegExp(`'${column}' column|column .*${column}`, "i").test(
     message ?? "",

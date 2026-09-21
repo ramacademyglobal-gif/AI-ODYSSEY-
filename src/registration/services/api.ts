@@ -253,6 +253,29 @@ export function getParticipant(hackerId: string) {
   )
 }
 
+/** Early check: leader email / phone already registered (optional txn). */
+export function checkRegistrationAvailability(payload: {
+  email: string
+  phone: string
+  payment_txn_id?: string
+}) {
+  return request<{
+    available: true
+    email: string
+    phone: string
+    payment_txn_id?: string
+  }>('/participants/check-availability', {
+    method: 'POST',
+    body: JSON.stringify({
+      email: payload.email,
+      phone: payload.phone,
+      ...(payload.payment_txn_id
+        ? { payment_txn_id: payload.payment_txn_id }
+        : {}),
+    }),
+  })
+}
+
 export function getTeam(code: string) {
   return request<ApiTeam>(`/teams/${encodeURIComponent(code)}`)
 }

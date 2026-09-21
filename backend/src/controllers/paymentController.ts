@@ -43,10 +43,10 @@ export function paymentProofUpload(
 
 function validateTransactionId(raw: unknown): string {
   const value = String(raw ?? "").trim();
-  if (value.length < 10 || value.length > 64) {
+  if (value.length < 10 || value.length > 128) {
     throw new AppError(
       400,
-      "Transaction ID must be 10–64 characters",
+      "Transaction ID must be 10–128 characters",
       "VALIDATION_ERROR",
     );
   }
@@ -122,6 +122,13 @@ export async function registerWithPaymentProof(
       .trim()
       .replace(/[^\w.-]+/g, "_")
       .slice(0, 40);
+
+    // Duplicate email / phone / txn BEFORE uploading screenshot to Storage
+    await participantService.checkRegistrationAvailability({
+      email: teamPayload.leader.email,
+      phone: teamPayload.leader.phone,
+      payment_txn_id: transactionId,
+    });
 
     const stored = await uploadPaymentScreenshot({
       buffer: file.buffer,

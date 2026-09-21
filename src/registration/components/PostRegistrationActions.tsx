@@ -247,7 +247,7 @@ export function PostRegistrationActions({
           ) : null}
 
           <label className="success-payment-proof__label" htmlFor="transaction-id">
-            Transaction ID
+            Transaction ID / UTR
           </label>
           <input
             id="transaction-id"
@@ -260,11 +260,11 @@ export function PostRegistrationActions({
               markUnverified()
               setFormError(null)
             }}
-            placeholder="Min. 10 characters"
+            placeholder="10–128 characters (from your UPI receipt)"
             autoComplete="off"
             spellCheck={false}
             minLength={10}
-            maxLength={64}
+            maxLength={128}
             disabled={submitting || submitted}
           />
           {txnError ? (
