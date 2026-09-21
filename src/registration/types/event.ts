@@ -5,7 +5,7 @@ export type EventConfig = {
   readonly name: string
   readonly tagline: string
   readonly registration: {
-    readonly mode: 'individual'
+    readonly mode: 'individual' | 'team'
     readonly soloParticipationAllowed: false
     readonly requiresTeam: true
     readonly allowedTeamSizes: readonly TeamSize[]

@@ -166,26 +166,25 @@ export function PostRegistrationActions({
           {EVENT_CONFIG.payment.heading}
         </h3>
         <p className="success-payment__amount" role="status">
-          <strong>You pay ₹{perPerson}</strong>
-          <span> (₹{perPerson} per person)</span>
           {teamTotal ? (
             <>
-              <br />
+              <strong>Team total ₹{teamTotal}</strong>
               <span>
-                Your team size {teamSize}: team total ₹{teamTotal}
-                {teamSize === 3 ? ' (3 × ₹100)' : ' (4 × ₹100)'}
+                {' '}
+                (₹{perPerson} × {teamSize} members)
               </span>
             </>
           ) : (
             <>
-              <br />
-              <span>Team of 3 = ₹300 total · Team of 4 = ₹400 total</span>
+              <strong>Pay ₹{perPerson} per person</strong>
+              <span> — team of 3 = ₹300 · team of 4 = ₹400</span>
             </>
           )}
         </p>
         <p className="success-payment__hint">
-          Scan the UPI QR for ₹{perPerson}, then upload a screenshot showing the
-          Transaction ID (min. 10 characters).
+          Scan the UPI QR for the full team amount
+          {teamTotal ? ` (₹${teamTotal})` : ''}, then upload a screenshot
+          showing the Transaction ID (min. 10 characters).
         </p>
         <ul className="success-payment__notices" aria-label="Payment rules">
           {EVENT_CONFIG.payment.notices.map((notice) => (

@@ -286,6 +286,19 @@
   margin-top: 0.15rem;
 }
 
+.checkin-member-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.45rem;
+}
+
+.checkin-confirm--compact {
+  padding: 0.45rem 0.75rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+}
+
 .checkin-badge {
   font-style: normal;
   font-size: 0.68rem;

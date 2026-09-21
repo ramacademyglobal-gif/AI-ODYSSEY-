@@ -182,7 +182,7 @@ export default function CheckinGatePage() {
     };
   }, [qrToken, loadScan]);
 
-  const handleCheckIn = async () => {
+  const handleCheckIn = async (hackerId?: string) => {
     if (!qrToken || submitting) return;
 
     const codeToSend = (gateCode.trim() || readStoredGateCode()).trim();
@@ -196,19 +196,30 @@ export default function CheckinGatePage() {
     setFlash(null);
 
     try {
+      const body: { gate_code: string; hacker_id?: string } = {
+        gate_code: codeToSend,
+      };
+      if (hackerId) body.hacker_id = hackerId;
+
       const result = await requestGate<
         GateCheckinView & { already_checked_in: boolean }
       >(`/passes/${encodeURIComponent(qrToken)}/checkin`, {
         method: "POST",
-        body: JSON.stringify({ gate_code: codeToSend }),
+        body: JSON.stringify(body),
       });
       persistGateSession(codeToSend);
       setGateUnlocked(true);
       setView(result);
+      const name =
+        hackerId
+          ? result.members.find(
+              (m) => m.hacker_id.toUpperCase() === hackerId.toUpperCase(),
+            )?.full_name || hackerId
+          : result.participant.full_name;
       setFlash(
         result.already_checked_in
-          ? `${result.participant.full_name} was already checked in.`
-          : `${result.participant.full_name} is checked in.`,
+          ? `${name} was already checked in.`
+          : `${name} is checked in.`,
       );
     } catch (err) {
       if (err instanceof ApiError && err.code === "GATE_CODE_INVALID") {
@@ -313,7 +324,7 @@ export default function CheckinGatePage() {
                         onClick={() => void handleCheckIn()}
                         disabled={submitting}
                       >
-                        {submitting ? "Checking in…" : "Mark as checked in"}
+                        {submitting ? "Checking in…" : "Mark leader as checked in"}
                       </button>
                     </div>
                   )}
@@ -376,9 +387,19 @@ export default function CheckinGatePage() {
                             {roleLabel(member.role)} · {member.hacker_id || "—"}
                           </span>
                         </div>
-                        <em className="checkin-badge checkin-badge--no">
-                          NOT CHECKED IN
-                        </em>
+                        <div className="checkin-member-actions">
+                          <em className="checkin-badge checkin-badge--no">
+                            NOT CHECKED IN
+                          </em>
+                          <button
+                            type="button"
+                            className="checkin-confirm checkin-confirm--compact"
+                            onClick={() => void handleCheckIn(member.hacker_id)}
+                            disabled={submitting}
+                          >
+                            {submitting ? "…" : "Check in"}
+                          </button>
+                        </div>
                       </li>
                     ))}
                   </ul>

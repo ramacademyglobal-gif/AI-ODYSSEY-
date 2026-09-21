@@ -60,6 +60,39 @@ export function generateTeamCode(): string {
   return `ODYSSEY24-${segment}`;
 }
 
+function validateRollNumber(value: unknown, label: string, errors: string[]): string {
+  const roll_number = asTrimmedString(value);
+  if (!roll_number || roll_number.length > 60) {
+    errors.push(`${label} register / roll number is required (max 60 characters)`);
+  }
+  return roll_number;
+}
+
+function validateMemberProfile(
+  raw: unknown,
+  label: string,
+  errors: string[],
+): { full_name: string; department: string; year: string; roll_number: string } {
+  const data =
+    raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const full_name = asTrimmedString(data.full_name);
+  const department = asTrimmedString(data.department);
+  const year = asTrimmedString(data.year);
+  const roll_number = validateRollNumber(data.roll_number, label, errors);
+
+  if (!full_name || full_name.length < 3 || full_name.length > 150) {
+    errors.push(`${label} full name is required (3–150 characters)`);
+  }
+  if (!department || department.length > 150) {
+    errors.push(`${label} department is required (max 150 characters)`);
+  }
+  if (!year || year.length > 30) {
+    errors.push(`${label} year is required`);
+  }
+
+  return { full_name, department, year, roll_number };
+}
+
 export function validateCreateParticipant(body: unknown) {
   if (!body || typeof body !== "object") {
     throw new ValidationError(["Request body must be a JSON object"]);
@@ -72,6 +105,7 @@ export function validateCreateParticipant(body: unknown) {
   const college = asTrimmedString(data.college);
   const department = asTrimmedString(data.department);
   const year = asTrimmedString(data.year);
+  const rollRaw = asTrimmedString(data.roll_number ?? data.rollNumber);
 
   const errors: string[] = [];
 
@@ -107,6 +141,131 @@ export function validateCreateParticipant(body: unknown) {
     college,
     department,
     year,
+    ...(rollRaw ? { roll_number: rollRaw.slice(0, 60) } : {}),
+  };
+}
+
+/** One-team registration: leader contact + member profiles (no join). */
+export function validateTeamRegistration(body: unknown) {
+  if (!body || typeof body !== "object") {
+    throw new ValidationError(["Request body must be a JSON object"]);
+  }
+
+  const data = body as Record<string, unknown>;
+  const team_name = asTrimmedString(data.team_name);
+  const college = asTrimmedString(data.college);
+  const rawSize = data.team_size ?? data.teamSize;
+  const team_size =
+    typeof rawSize === "number"
+      ? rawSize
+      : typeof rawSize === "string"
+        ? Number(rawSize)
+        : NaN;
+
+  const errors: string[] = [];
+
+  if (!team_name || team_name.length < 2 || team_name.length > 150) {
+    errors.push("team_name is required (2–150 characters)");
+  }
+  if (!college || college.length > 255) {
+    errors.push("college is required (max 255 characters)");
+  }
+  if (!isTeamSize(team_size)) {
+    errors.push("team_size must be exactly 3 or 4");
+  }
+
+  const leaderRaw =
+    data.leader && typeof data.leader === "object"
+      ? (data.leader as Record<string, unknown>)
+      : {
+          full_name: data.full_name,
+          email: data.email,
+          phone: data.phone,
+          department: data.department,
+          year: data.year,
+          roll_number: data.roll_number ?? data.rollNumber,
+        };
+
+  const leaderName = asTrimmedString(leaderRaw.full_name);
+  const leaderEmail = asTrimmedString(leaderRaw.email).toLowerCase();
+  const leaderPhone = asTrimmedString(leaderRaw.phone).replace(/\s+/g, "");
+  const leaderDept = asTrimmedString(leaderRaw.department);
+  const leaderYear = asTrimmedString(leaderRaw.year);
+  const leaderRoll = validateRollNumber(
+    leaderRaw.roll_number ?? leaderRaw.rollNumber,
+    "Team Leader",
+    errors,
+  );
+
+  if (!leaderName || leaderName.length < 3 || leaderName.length > 150) {
+    errors.push("Team Leader full name is required (3–150 characters)");
+  }
+  if (!leaderEmail || !EMAIL_PATTERN.test(leaderEmail) || leaderEmail.length > 255) {
+    errors.push("Team Leader email must be a valid email address");
+  }
+  if (!leaderPhone || leaderPhone.length < 10 || leaderPhone.length > 20) {
+    errors.push("Team Leader phone is required (10–20 characters)");
+  } else if (!/^\+?[0-9]+$/.test(leaderPhone)) {
+    errors.push("Team Leader phone must contain digits only (optional leading +)");
+  }
+  if (!leaderDept || leaderDept.length > 150) {
+    errors.push("Team Leader department is required");
+  }
+  if (!leaderYear || leaderYear.length > 30) {
+    errors.push("Team Leader year is required");
+  }
+
+  let membersRaw = data.members;
+  if (typeof membersRaw === "string") {
+    try {
+      membersRaw = JSON.parse(membersRaw) as unknown;
+    } catch {
+      errors.push("members must be a valid JSON array");
+      membersRaw = [];
+    }
+  }
+  if (!Array.isArray(membersRaw)) {
+    errors.push("members must be an array");
+    membersRaw = [];
+  }
+
+  const expectedMembers = isTeamSize(team_size) ? team_size - 1 : 0;
+  if (Array.isArray(membersRaw) && membersRaw.length !== expectedMembers) {
+    errors.push(
+      `Provide exactly ${expectedMembers} teammate profile(s) for a team of ${team_size}`,
+    );
+  }
+
+  const members = (Array.isArray(membersRaw) ? membersRaw : [])
+    .slice(0, expectedMembers)
+    .map((row, index) =>
+      validateMemberProfile(row, `Member ${String(index + 2).padStart(2, "0")}`, errors),
+    );
+
+  const rolls = [leaderRoll, ...members.map((m) => m.roll_number.toLowerCase())];
+  const rollSet = new Set(rolls.map((r) => r.toLowerCase()));
+  if (rolls.length !== rollSet.size) {
+    errors.push("Register / roll numbers must be unique within the team");
+  }
+
+  if (errors.length > 0) {
+    throw new ValidationError(errors);
+  }
+
+  return {
+    team_name,
+    team_size: team_size as TeamSize,
+    college,
+    leader: {
+      full_name: leaderName,
+      email: leaderEmail,
+      phone: leaderPhone,
+      college,
+      department: leaderDept,
+      year: leaderYear,
+      roll_number: leaderRoll,
+    },
+    members,
   };
 }
 

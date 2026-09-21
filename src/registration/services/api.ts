@@ -17,6 +17,7 @@ export type ApiParticipant = {
   status: string
   created_at: string
   qr_token?: string
+  roll_number?: string | null
 }
 
 export type ApiTeamMember = {
@@ -40,26 +41,6 @@ export type ApiTeam = {
     hacker_id: string
   } | null
   members: ApiTeamMember[]
-}
-
-export type CreateParticipantPayload = {
-  full_name: string
-  email: string
-  phone: string
-  college: string
-  department: string
-  year: string
-}
-
-export type CreateTeamPayload = {
-  team_name: string
-  team_size: 3 | 4
-  leader_participant_id: string
-}
-
-export type JoinTeamPayload = {
-  team_code: string
-  participant_id: string
 }
 
 export type ApiPassMember = {
@@ -175,26 +156,26 @@ export function withoutQrToken(participant: ApiParticipant): ApiParticipant {
   return copy
 }
 
-export function createParticipant(payload: CreateParticipantPayload) {
-  return request<ApiParticipant>('/participants', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
+export type TeamMemberPayload = {
+  full_name: string
+  department: string
+  year: string
+  roll_number: string
 }
 
 export type RegisterWithPaymentPayload = {
   screenshot: File
   transaction_id: string
+  team_name: string
+  team_size: 3 | 4
+  college: string
   full_name: string
   email: string
   phone: string
-  college: string
   department: string
   year: string
-  team_mode: 'create' | 'join'
-  team_name?: string
-  team_size?: 3 | 4
-  team_code?: string
+  roll_number: string
+  members: TeamMemberPayload[]
 }
 
 export type RegisterWithPaymentResult = {
@@ -203,28 +184,30 @@ export type RegisterWithPaymentResult = {
   role: 'LEADER' | 'MEMBER'
   payment: {
     transaction_id: string
-    drive_file_id: string
-    drive_file_url: string
+    drive_file_id?: string
+    drive_file_url?: string
+    file_id?: string
+    file_url?: string
   }
 }
 
-/** Finalize registration: upload proof to Drive, save txn+link, create participant/team. */
+/** Finalize one-team registration: upload proof, save txn, create full squad. */
 export async function registerWithPaymentProof(
   payload: RegisterWithPaymentPayload,
 ): Promise<RegisterWithPaymentResult> {
   const form = new FormData()
   form.append('screenshot', payload.screenshot)
   form.append('transaction_id', payload.transaction_id)
+  form.append('team_name', payload.team_name)
+  form.append('team_size', String(payload.team_size))
+  form.append('college', payload.college)
   form.append('full_name', payload.full_name)
   form.append('email', payload.email)
   form.append('phone', payload.phone)
-  form.append('college', payload.college)
   form.append('department', payload.department)
   form.append('year', payload.year)
-  form.append('team_mode', payload.team_mode)
-  if (payload.team_name) form.append('team_name', payload.team_name)
-  if (payload.team_size) form.append('team_size', String(payload.team_size))
-  if (payload.team_code) form.append('team_code', payload.team_code)
+  form.append('roll_number', payload.roll_number)
+  form.append('members', JSON.stringify(payload.members))
 
   let response: Response
   try {
@@ -255,7 +238,7 @@ export async function registerWithPaymentProof(
     const details = failure?.details ?? []
     throw new ApiError(
       response.status,
-      failure?.message || 'Registration with payment proof failed.',
+      details[0] || failure?.message || 'Registration with payment proof failed.',
       failure?.error,
       details,
     )
@@ -270,22 +253,8 @@ export function getParticipant(hackerId: string) {
   )
 }
 
-export function createTeam(payload: CreateTeamPayload) {
-  return request<ApiTeam>('/teams', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
-}
-
 export function getTeam(code: string) {
   return request<ApiTeam>(`/teams/${encodeURIComponent(code)}`)
-}
-
-export function joinTeam(payload: JoinTeamPayload) {
-  return request<ApiTeam>('/teams/join', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
 }
 
 export function getPass(qrToken: string) {

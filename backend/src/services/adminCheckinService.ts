@@ -261,7 +261,51 @@ export async function checkInByQrToken(
 ): Promise<CheckinActionResult> {
   const token = normalizeQrToken(rawToken);
   const participant = await loadParticipantByQrToken(token);
+  return checkInParticipant(participant, admin);
+}
 
+/** Check in a teammate by hacker_id when scanning the leader (or any team) QR. */
+export async function checkInTeammateFromQr(
+  rawToken: string,
+  hackerId: string,
+  admin?: AuditActor | null,
+): Promise<CheckinActionResult> {
+  const token = normalizeQrToken(rawToken);
+  const scanned = await loadParticipantByQrToken(token);
+  const scan = await buildScanResult(scanned);
+
+  const targetHacker = hackerId.trim().toUpperCase();
+  const onTeam = scan.members.some(
+    (m) => m.hacker_id.toUpperCase() === targetHacker,
+  );
+  if (!onTeam) {
+    throw new AppError(
+      400,
+      "That hacker is not on this team",
+      "NOT_ON_TEAM",
+    );
+  }
+
+  const { data, error } = await supabase
+    .from("participants")
+    .select("id, hacker_id, full_name, status")
+    .eq("hacker_id", targetHacker)
+    .maybeSingle();
+
+  if (error) {
+    throw new AppError(500, "Failed to look up teammate", "CHECKIN_LOOKUP_FAILED");
+  }
+  if (!data) {
+    throw new AppError(404, "Teammate not found", "PARTICIPANT_NOT_FOUND");
+  }
+
+  return checkInParticipant(data as ParticipantRow, admin);
+}
+
+async function checkInParticipant(
+  participant: ParticipantRow,
+  admin?: AuditActor | null,
+): Promise<CheckinActionResult> {
   // Ensure they have a team before inserting
   const existingScan = await buildScanResult(participant);
   if (existingScan.participant.checked_in) {

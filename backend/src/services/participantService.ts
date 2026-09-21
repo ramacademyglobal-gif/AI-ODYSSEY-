@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { supabase } from "../config/supabase.js";
 import { AppError } from "../middleware/errorHandler.js";
 import type { CreateParticipantInput, ParticipantRow } from "../types/index.js";
@@ -134,38 +135,49 @@ async function insertParticipantCompatible(
         }
       : null;
 
+  const roll = input.roll_number?.trim();
+
+  const baseFields = {
+    hacker_id,
+    full_name: input.full_name,
+    email: input.email,
+    phone: input.phone,
+    college: input.college,
+    department: input.department,
+    year: input.year,
+  };
+
   const attempts: Record<string, unknown>[] = [
     {
-      hacker_id,
-      full_name: input.full_name,
-      email: input.email,
-      phone: input.phone,
-      college: input.college,
-      department: input.department,
-      year: input.year,
+      ...baseFields,
+      qr_token,
+      status: "REGISTERED",
+      ...(roll ? { roll_number: roll } : {}),
+      ...(paymentFields ?? {}),
+    },
+    {
+      ...baseFields,
       qr_token,
       status: "REGISTERED",
       ...(paymentFields ?? {}),
     },
     {
-      hacker_id,
-      full_name: input.full_name,
-      email: input.email,
-      phone: input.phone,
-      college: input.college,
-      department: input.department,
-      year: input.year,
+      ...baseFields,
+      qr_token,
+      status: "REGISTERED",
+      // Fallback when roll_number column is missing: keep roll visible in department.
+      department: roll
+        ? `${input.department} · Roll ${roll}`.slice(0, 150)
+        : input.department,
+      ...(paymentFields ?? {}),
+    },
+    {
+      ...baseFields,
       qr_token,
       status: "REGISTERED",
     },
     {
-      hacker_id,
-      full_name: input.full_name,
-      email: input.email,
-      phone: input.phone,
-      college: input.college,
-      department: input.department,
-      year: input.year,
+      ...baseFields,
       status: "REGISTERED",
     },
     {
@@ -194,6 +206,9 @@ async function insertParticipantCompatible(
       if (!result.data.qr_token) patch.qr_token = qr_token;
       if (!result.data.department) patch.department = input.department;
       if (!result.data.year) patch.year = input.year;
+      if (roll && !(result.data as ParticipantRow).roll_number) {
+        patch.roll_number = roll;
+      }
       if (paymentFields && !result.data.payment_txn_id) {
         Object.assign(patch, paymentFields);
       }
@@ -217,6 +232,14 @@ async function insertParticipantCompatible(
             "PAYMENT_COLUMNS_MISSING",
           );
         }
+        // Ignore missing roll_number column on patch
+        if (
+          patchError &&
+          (missingColumn(patchError.message, "roll_number") ||
+            /schema cache/i.test(patchError.message ?? ""))
+        ) {
+          return result;
+        }
         if (updated) {
           return { data: updated as ParticipantRow, error: null };
         }
@@ -233,6 +256,7 @@ async function insertParticipantCompatible(
       !missingColumn(result.error?.message, "department") &&
       !missingColumn(result.error?.message, "year") &&
       !missingColumn(result.error?.message, "status") &&
+      !missingColumn(result.error?.message, "roll_number") &&
       !missingColumn(result.error?.message, "payment_txn_id") &&
       !missingColumn(result.error?.message, "payment_drive_file_id") &&
       !missingColumn(result.error?.message, "payment_drive_file_url") &&
@@ -244,6 +268,42 @@ async function insertParticipantCompatible(
   }
 
   return { data: null, error: lastError };
+}
+
+function syntheticMemberContact(seed: string): { email: string; phone: string } {
+  const clean =
+    seed.replace(/[^a-zA-Z0-9]/g, "").slice(0, 16).toLowerCase() || "member";
+  const suffix = randomBytes(4).toString("hex");
+  const email = `${clean}.${suffix}@members.odyssey24.local`;
+  const digits = randomBytes(8);
+  let phone = "9";
+  for (let i = 0; i < 9; i++) {
+    phone += String(digits[i]! % 10);
+  }
+  return { email, phone };
+}
+
+/** Create a teammate without contact details (synthetic unique email/phone). */
+export async function createTeamMateParticipant(input: {
+  full_name: string;
+  college: string;
+  department: string;
+  year: string;
+  roll_number: string;
+}): Promise<ParticipantRow> {
+  const contact = syntheticMemberContact(
+    `${input.roll_number}-${input.full_name}`,
+  );
+
+  return createParticipant({
+    full_name: input.full_name,
+    email: contact.email,
+    phone: contact.phone,
+    college: input.college,
+    department: input.department,
+    year: input.year,
+    roll_number: input.roll_number,
+  });
 }
 
 export async function createParticipant(

@@ -14,6 +14,7 @@ import {
   validateCreateParticipant,
   validateCreateTeam,
   validateJoinTeam,
+  validateTeamRegistration,
   ValidationError,
 } from './validation.js'
 
@@ -135,6 +136,80 @@ describe('validateJoinTeam', () => {
     ).toThrow(ValidationError)
   })
 })
+
+describe('validateTeamRegistration', () => {
+  it('accepts a full team of 3', () => {
+    const result = validateTeamRegistration({
+      team_name: 'Nexus',
+      team_size: 3,
+      college: 'KCET',
+      leader: {
+        full_name: 'Leader One',
+        email: 'lead@example.com',
+        phone: '9876543210',
+        department: 'CSE',
+        year: '3rd Year',
+        roll_number: '21CS001',
+      },
+      members: [
+        {
+          full_name: 'Member Two',
+          department: 'CSE',
+          year: '2nd Year',
+          roll_number: '21CS002',
+        },
+        {
+          full_name: 'Member Three',
+          department: 'IT',
+          year: '2nd Year',
+          roll_number: '21IT003',
+        },
+      ],
+    })
+    expect(result.team_size).toBe(3)
+    expect(result.members).toHaveLength(2)
+    expect(result.leader.roll_number).toBe('21CS001')
+  })
+
+  it('rejects member 4 when size is 3', () => {
+    expect(() =>
+      validateTeamRegistration({
+        team_name: 'Nexus',
+        team_size: 3,
+        college: 'KCET',
+        leader: {
+          full_name: 'Leader One',
+          email: 'lead@example.com',
+          phone: '9876543210',
+          department: 'CSE',
+          year: '3rd Year',
+          roll_number: '21CS001',
+        },
+        members: [
+          {
+            full_name: 'Member Two',
+            department: 'CSE',
+            year: '2nd Year',
+            roll_number: '21CS002',
+          },
+          {
+            full_name: 'Member Three',
+            department: 'IT',
+            year: '2nd Year',
+            roll_number: '21IT003',
+          },
+          {
+            full_name: 'Member Four',
+            department: 'CSE',
+            year: '1st Year',
+            roll_number: '21CS004',
+          },
+        ],
+      }),
+    ).toThrow(ValidationError)
+  })
+})
+
 
 describe('admin validators', () => {
   it('requires qr_token for check-in', () => {

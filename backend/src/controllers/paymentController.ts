@@ -5,7 +5,10 @@ import * as participantService from "../services/participantService.js";
 import * as teamService from "../services/teamService.js";
 import { uploadPaymentScreenshot } from "../services/paymentStorageService.js";
 import { toCreatedParticipant } from "../utils/mappers.js";
-import { validateCreateParticipant } from "../utils/validation.js";
+import {
+  validateTeamRegistration,
+  ValidationError,
+} from "../utils/validation.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -58,9 +61,9 @@ function validateTransactionId(raw: unknown): string {
 }
 
 /**
- * Multipart registration after payment proof:
- * screenshot + transaction_id + profile + team create/join.
- * Uploads screenshot to Supabase Storage, stores txn + file path on participant.
+ * Multipart one-team registration after payment proof:
+ * screenshot + transaction_id + team + leader + members.
+ * Creates the full squad in one submit. Digital Hacker Pass QR is for leader only.
  */
 export async function registerWithPaymentProof(
   req: Request,
@@ -78,25 +81,44 @@ export async function registerWithPaymentProof(
     }
 
     const transactionId = validateTransactionId(req.body.transaction_id);
-    const teamMode = String(req.body.team_mode ?? "").trim().toLowerCase();
-    if (teamMode !== "create" && teamMode !== "join") {
-      throw new AppError(
-        400,
-        "team_mode must be create or join",
-        "VALIDATION_ERROR",
-      );
+
+    let membersParsed: unknown = req.body.members;
+    if (typeof membersParsed === "string") {
+      try {
+        membersParsed = JSON.parse(membersParsed) as unknown;
+      } catch {
+        throw new AppError(
+          400,
+          "members must be a valid JSON array",
+          "VALIDATION_ERROR",
+        );
+      }
     }
 
-    const profile = validateCreateParticipant({
-      full_name: req.body.full_name,
-      email: req.body.email,
-      phone: req.body.phone,
-      college: req.body.college,
-      department: req.body.department,
-      year: req.body.year,
-    });
+    let teamPayload;
+    try {
+      teamPayload = validateTeamRegistration({
+        team_name: req.body.team_name,
+        team_size: req.body.team_size,
+        college: req.body.college,
+        leader: {
+          full_name: req.body.full_name ?? req.body.leader_full_name,
+          email: req.body.email ?? req.body.leader_email,
+          phone: req.body.phone ?? req.body.leader_phone,
+          department: req.body.department ?? req.body.leader_department,
+          year: req.body.year ?? req.body.leader_year,
+          roll_number: req.body.roll_number ?? req.body.leader_roll_number,
+        },
+        members: membersParsed,
+      });
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        throw err;
+      }
+      throw err;
+    }
 
-    const label = profile.full_name
+    const label = teamPayload.leader.full_name
       .trim()
       .replace(/[^\w.-]+/g, "_")
       .slice(0, 40);
@@ -109,52 +131,40 @@ export async function registerWithPaymentProof(
       participantLabel: label || "participant",
     });
 
-    const participant = await participantService.createParticipant({
-      ...profile,
+    const leader = await participantService.createParticipant({
+      ...teamPayload.leader,
       payment_txn_id: transactionId,
       payment_drive_file_id: stored.file_id,
       payment_drive_file_url: stored.file_url,
       payment_verified_at: new Date().toISOString(),
     });
 
-    let team;
-    let role: "LEADER" | "MEMBER";
+    let team = await teamService.createTeam({
+      team_name: teamPayload.team_name,
+      team_size: teamPayload.team_size,
+      leader_participant_id: leader.id,
+    });
 
-    if (teamMode === "create") {
-      const teamName = String(req.body.team_name ?? "").trim();
-      const teamSize = Number(req.body.team_size);
-      if (teamName.length < 2) {
-        throw new AppError(400, "Team name is required", "VALIDATION_ERROR");
-      }
-      if (teamSize !== 3 && teamSize !== 4) {
-        throw new AppError(400, "Team size must be 3 or 4", "VALIDATION_ERROR");
-      }
-      team = await teamService.createTeam({
-        team_name: teamName,
-        team_size: teamSize,
-        leader_participant_id: participant.id,
+    for (const member of teamPayload.members) {
+      const mate = await participantService.createTeamMateParticipant({
+        full_name: member.full_name,
+        college: teamPayload.college,
+        department: member.department,
+        year: member.year,
+        roll_number: member.roll_number,
       });
-      role = "LEADER";
-    } else {
-      const teamCode = String(req.body.team_code ?? "")
-        .trim()
-        .toUpperCase();
-      if (!teamCode) {
-        throw new AppError(400, "Team code is required", "VALIDATION_ERROR");
-      }
       team = await teamService.joinTeam({
-        team_code: teamCode,
-        participant_id: participant.id,
+        team_code: team.team_code,
+        participant_id: mate.id,
       });
-      role = "MEMBER";
     }
 
     res.status(201).json({
       success: true,
       data: {
-        participant: toCreatedParticipant(participant),
+        participant: toCreatedParticipant(leader),
         team,
-        role,
+        role: "LEADER" as const,
         payment: {
           transaction_id: transactionId,
           file_id: stored.file_id,

@@ -13,6 +13,7 @@ export type ParticipantRow = {
   college: string;
   department: string;
   year: string;
+  roll_number?: string | null;
   qr_token: string;
   status: string;
   created_at: string;
@@ -50,10 +51,26 @@ export type CreateParticipantInput = {
   college: string;
   department: string;
   year: string;
+  roll_number?: string;
   payment_txn_id?: string;
   payment_drive_file_id?: string;
   payment_drive_file_url?: string;
   payment_verified_at?: string;
+};
+
+export type TeamMemberProfileInput = {
+  full_name: string;
+  department: string;
+  year: string;
+  roll_number: string;
+};
+
+export type TeamRegistrationInput = {
+  team_name: string;
+  team_size: TeamSize;
+  college: string;
+  leader: CreateParticipantInput & { roll_number: string };
+  members: TeamMemberProfileInput[];
 };
 
 export type CreateTeamInput = {

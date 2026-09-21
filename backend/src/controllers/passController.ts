@@ -65,7 +65,9 @@ export async function scanGateCheckin(
   }
 }
 
-/** Confirm check-in — requires organizer gate passcode (GATE_CHECKIN_CODE). */
+/** Confirm check-in — requires organizer gate passcode (GATE_CHECKIN_CODE).
+ * Optional body.hacker_id checks in that teammate (same team as scanned QR).
+ */
 export async function createGateCheckin(
   req: Request,
   res: Response,
@@ -74,7 +76,18 @@ export async function createGateCheckin(
   try {
     assertGateCheckinCode(req.body);
     const qrToken = String(req.params.qrToken ?? "").trim();
-    const result = await adminCheckinService.checkInByQrToken(qrToken, null);
+    const hackerId =
+      req.body &&
+      typeof req.body === "object" &&
+      "hacker_id" in req.body &&
+      typeof (req.body as { hacker_id?: unknown }).hacker_id === "string"
+        ? (req.body as { hacker_id: string }).hacker_id.trim()
+        : "";
+
+    const result = hackerId
+      ? await adminCheckinService.checkInTeammateFromQr(qrToken, hackerId, null)
+      : await adminCheckinService.checkInByQrToken(qrToken, null);
+
     res.status(result.already_checked_in ? 200 : 201).json({
       success: true,
       data: result,

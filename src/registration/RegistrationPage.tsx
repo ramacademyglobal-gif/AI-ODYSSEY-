@@ -26,7 +26,6 @@ import { triggerRouteVeil } from "@/registration/components/triggerRouteVeil";
 import { useRevealOnScroll } from "@/registration/hooks/useRevealOnScroll";
 import "@/registration/styles/odyssey-register.css";
 
-type TeamMode = 'create' | 'join' | null
 type TeamSize = 3 | 4
 
 function ReqMark() {
@@ -37,21 +36,24 @@ function ReqMark() {
   )
 }
 
-interface FormData {
+type MemberDraft = {
   fullName: string
-  email: string
-  mobile: string
-  college: string
   department: string
   year: string
-  teamName: string
-  teamSize: TeamSize | null
-  teamCode: string
+  rollNumber: string
 }
 
-interface TeamDraft {
-  team_name: string
-  team_size: TeamSize
+interface FormData {
+  teamName: string
+  college: string
+  teamSize: TeamSize | null
+  leaderFullName: string
+  leaderEmail: string
+  leaderMobile: string
+  leaderDepartment: string
+  leaderYear: string
+  leaderRoll: string
+  members: MemberDraft[]
 }
 
 interface Errors {
@@ -60,6 +62,15 @@ interface Errors {
 
 const years = ['1st Year', '2nd Year', '3rd Year', '4th Year']
 const TOTAL_STEPS = 3
+
+function emptyMember(): MemberDraft {
+  return { fullName: '', department: '', year: '', rollNumber: '' }
+}
+
+function membersForSize(size: TeamSize, previous: MemberDraft[]): MemberDraft[] {
+  const count = size - 1
+  return Array.from({ length: count }, (_, i) => previous[i] ?? emptyMember())
+}
 
 function formatApiError(err: unknown): string {
   if (err instanceof ApiError) {
@@ -71,21 +82,21 @@ function formatApiError(err: unknown): string {
 
 function Registration() {
   const [step, setStep] = useState(1)
-  const [teamMode, setTeamMode] = useState<TeamMode>(null)
   const [errors, setErrors] = useState<Errors>({})
   const [submitting] = useState(false)
   const [actionLoading, setActionLoading] = useState(false)
 
   const [form, setForm] = useState<FormData>({
-    fullName: '',
-    email: '',
-    mobile: '',
-    college: '',
-    department: '',
-    year: '',
     teamName: '',
+    college: '',
     teamSize: null,
-    teamCode: '',
+    leaderFullName: '',
+    leaderEmail: '',
+    leaderMobile: '',
+    leaderDepartment: '',
+    leaderYear: '',
+    leaderRoll: '',
+    members: membersForSize(3, []),
   })
 
   const restored = useMemo(() => {
@@ -100,8 +111,6 @@ function Registration() {
     () => restored?.participant ?? null,
   )
   const [team, setTeam] = useState<ApiTeam | null>(() => restored?.team ?? null)
-  const [teamDraft, setTeamDraft] = useState<TeamDraft | null>(null)
-  const [previewTeam, setPreviewTeam] = useState<ApiTeam | null>(null)
   const [role, setRole] = useState<'LEADER' | 'MEMBER' | null>(
     () => restored?.role ?? null,
   )
@@ -113,7 +122,6 @@ function Registration() {
   const skipStepVeil = useRef(true)
   useRevealOnScroll([step, awaitingPayment, completed, paymentVerified])
 
-  // AI ODYSSEY veil on every wizard / payment / success step change
   useEffect(() => {
     if (skipStepVeil.current) {
       skipStepVeil.current = false
@@ -122,7 +130,6 @@ function Registration() {
     triggerRouteVeil()
   }, [step, awaitingPayment, paymentVerified])
 
-  // Refresh live team fill/status so COMPLETE shows when the squad is full.
   useEffect(() => {
     const code = completed?.team?.team_code
     if (!code) return
@@ -178,65 +185,118 @@ function Registration() {
     }
   }, [completed, participant, team, role])
 
-  const updateField = (
-    field: keyof FormData,
-    value: string | TeamSize | null,
-  ) => {
+  const updateField = <K extends keyof FormData>(field: K, value: FormData[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }))
     setErrors((prev) => ({ ...prev, [field]: '' }))
   }
 
+  const setTeamSize = (size: TeamSize) => {
+    setForm((prev) => ({
+      ...prev,
+      teamSize: size,
+      members: membersForSize(size, prev.members),
+    }))
+    setErrors((prev) => ({ ...prev, teamSize: '', member4: '' }))
+  }
+
+  const updateMember = (
+    index: number,
+    field: keyof MemberDraft,
+    value: string,
+  ) => {
+    setForm((prev) => {
+      const members = prev.members.map((m, i) =>
+        i === index ? { ...m, [field]: value } : m,
+      )
+      return { ...prev, members }
+    })
+    setErrors((prev) => ({ ...prev, [`member${index}_${field}`]: '' }))
+  }
+
   const validateStep1 = () => {
     const newErrors: Errors = {}
-    if (!form.fullName.trim() || form.fullName.trim().length < 3) {
-      newErrors.fullName = 'Full name is required (min 3 characters)'
+    if (!form.teamName.trim() || form.teamName.trim().length < 2) {
+      newErrors.teamName = 'Team name is required'
     }
-    if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      newErrors.email = 'Enter a valid email address'
+    if (!form.college.trim()) {
+      newErrors.college = 'College / Institution is required'
     }
-    if (!form.mobile.trim() || !/^\d{10}$/.test(form.mobile.trim())) {
-      newErrors.mobile = 'Mobile number must contain exactly 10 digits'
+    if (!form.teamSize) {
+      newErrors.teamSize = 'Select your team size (3 or 4 members)'
     }
-    if (!form.college.trim()) newErrors.college = 'College / Institution is required'
-    if (!form.department.trim()) newErrors.department = 'Department is required'
-    if (!form.year) newErrors.year = 'Select your year of study'
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
   const validateStep2 = () => {
     const newErrors: Errors = {}
-    if (!teamMode) {
-      newErrors.teamMode = 'Choose Create a Team or Join a Team'
+    if (!form.leaderFullName.trim() || form.leaderFullName.trim().length < 3) {
+      newErrors.leaderFullName = 'Full name is required (min 3 characters)'
     }
-    if (teamMode === 'create') {
-      if (!form.teamName.trim() || form.teamName.trim().length < 2) {
-        newErrors.teamName = 'Team name is required'
-      }
-      if (!form.teamSize) {
-        newErrors.teamSize = 'Select your team size (3 or 4 members)'
-      }
-      if (!teamDraft) {
-        newErrors.teamCode = 'Create your team before continuing'
-      }
+    if (
+      !form.leaderEmail.trim() ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.leaderEmail.trim())
+    ) {
+      newErrors.leaderEmail = 'Enter a valid email address'
     }
-    if (teamMode === 'join') {
-      const code = form.teamCode.trim().toUpperCase()
-      if (!code) {
-        newErrors.teamCode = 'Team code is required'
-      } else if (!/^ODYSSEY24-[A-Z0-9]{4}$/.test(code)) {
-        newErrors.teamCode = 'Enter a valid code (ODYSSEY24-XXXX)'
-      } else if (!previewTeam) {
-        newErrors.teamCode = 'Look up your team before continuing'
-      } else if (previewTeam.available_slots <= 0) {
-        newErrors.teamCode = 'This team is full and cannot be joined'
-      }
+    if (!form.leaderMobile.trim() || !/^\d{10}$/.test(form.leaderMobile.trim())) {
+      newErrors.leaderMobile = 'Mobile number must contain exactly 10 digits'
+    }
+    if (!form.leaderDepartment.trim()) {
+      newErrors.leaderDepartment = 'Department is required'
+    }
+    if (!form.leaderYear) {
+      newErrors.leaderYear = 'Select year of study'
+    }
+    if (!form.leaderRoll.trim()) {
+      newErrors.leaderRoll = 'Register / Roll number is required'
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
-  const nextStep = async () => {
+  const validateStep3 = () => {
+    const newErrors: Errors = {}
+    if (!form.teamSize) {
+      newErrors.teamSize = 'Select team size first'
+      setErrors(newErrors)
+      return false
+    }
+
+    const expected = form.teamSize - 1
+    form.members.slice(0, expected).forEach((member, index) => {
+      const label = `Member ${String(index + 2).padStart(2, '0')}`
+      if (!member.fullName.trim() || member.fullName.trim().length < 3) {
+        newErrors[`member${index}_fullName`] =
+          `${label}: full name is required (min 3 characters)`
+      }
+      if (!member.department.trim()) {
+        newErrors[`member${index}_department`] = `${label}: department is required`
+      }
+      if (!member.year) {
+        newErrors[`member${index}_year`] = `${label}: select year of study`
+      }
+      if (!member.rollNumber.trim()) {
+        newErrors[`member${index}_rollNumber`] =
+          `${label}: register / roll number is required`
+      }
+    })
+
+    const rolls = [
+      form.leaderRoll.trim().toLowerCase(),
+      ...form.members
+        .slice(0, expected)
+        .map((m) => m.rollNumber.trim().toLowerCase()),
+    ].filter(Boolean)
+    if (new Set(rolls).size !== rolls.length) {
+      newErrors.form = 'Register / roll numbers must be unique within the team'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
+  const nextStep = () => {
     if (submitting || actionLoading) return
 
     if (step === 1) {
@@ -249,6 +309,7 @@ function Registration() {
 
     if (step === 2) {
       if (!validateStep2()) return
+      setErrors({})
       setStep(3)
       window.scrollTo({ top: 0, behavior: 'smooth' })
     }
@@ -261,96 +322,20 @@ function Registration() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleCreateTeam = () => {
-    if (actionLoading) return
-    const newErrors: Errors = {}
-    if (!form.teamName.trim() || form.teamName.trim().length < 2) {
-      newErrors.teamName = 'Team name is required'
-    }
-    if (!form.teamSize) {
-      newErrors.teamSize = 'Select your team size (3 or 4 members)'
-    }
-    if (Object.keys(newErrors).length > 0) {
-      setErrors((prev) => ({ ...prev, ...newErrors }))
-      return
-    }
-
-    setErrors({})
-    setTeamDraft({
-      team_name: form.teamName.trim(),
-      team_size: form.teamSize!,
-    })
-    setRole('LEADER')
-    setTeam(null)
-    setStep(3)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }
-
-  const handleFindTeam = async () => {
-    if (actionLoading) return
-    const code = form.teamCode.trim().toUpperCase()
-    updateField('teamCode', code)
-    setTeam(null)
-    setTeamDraft(null)
-    setRole(null)
-
-    if (!code) {
-      setPreviewTeam(null)
-      setErrors((prev) => ({ ...prev, teamCode: 'Team code is required' }))
-      return
-    }
-    if (!/^ODYSSEY24-[A-Z0-9]{4}$/.test(code)) {
-      setPreviewTeam(null)
-      setErrors((prev) => ({
-        ...prev,
-        teamCode: 'Enter a valid code (ODYSSEY24-XXXX)',
-      }))
-      return
-    }
-
-    try {
-      setActionLoading(true)
-      setErrors({})
-      const found = await getTeam(code)
-      setPreviewTeam(found)
-      if (found.available_slots <= 0) {
-        setErrors({
-          teamCode: `This team is full (${found.member_count}/${found.team_size} · ${found.status})`,
-        })
-      }
-    } catch (err) {
-      setPreviewTeam(null)
-      setErrors({ teamCode: formatApiError(err) })
-    } finally {
-      setActionLoading(false)
-    }
-  }
-
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (submitting || actionLoading) return
 
-    if (teamMode === 'create') {
-      if (!teamDraft) {
-        setErrors({ form: 'Create your team before confirming.' })
-        return
-      }
-    } else if (teamMode === 'join') {
-      if (!previewTeam) {
-        setErrors({ form: 'Look up a valid team before confirming.' })
-        return
-      }
-      if (previewTeam.available_slots <= 0) {
-        setErrors({ form: 'This team is full and cannot be joined.' })
-        return
-      }
-    } else {
-      setErrors({ form: 'Choose Create a Team or Join a Team.' })
-      return
-    }
-
     if (!validateStep1()) {
       setStep(1)
+      return
+    }
+    if (!validateStep2()) {
+      setStep(2)
+      return
+    }
+    if (!validateStep3()) {
+      setStep(3)
       return
     }
 
@@ -359,36 +344,39 @@ function Registration() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  /** Persist participant + team to DB only after payment proof is accepted. */
   const persistRegistrationAfterPayment = async (proof: {
     file: File
     transactionId: string
   }) => {
     try {
-      if (teamMode !== 'create' && teamMode !== 'join') {
-        throw new Error('Choose Create a Team or Join a Team.')
+      if (!form.teamSize) {
+        throw new Error('Select team size before paying.')
       }
 
       const result = await registerWithPaymentProof({
         screenshot: proof.file,
         transaction_id: proof.transactionId,
-        full_name: form.fullName.trim(),
-        email: form.email.trim().toLowerCase(),
-        phone: form.mobile.trim(),
+        team_name: form.teamName.trim(),
+        team_size: form.teamSize,
         college: form.college.trim(),
-        department: form.department.trim(),
-        year: form.year,
-        team_mode: teamMode,
-        team_name: teamMode === 'create' ? teamDraft?.team_name : undefined,
-        team_size: teamMode === 'create' ? teamDraft?.team_size : undefined,
-        team_code:
-          teamMode === 'join' ? form.teamCode.trim().toUpperCase() : undefined,
+        full_name: form.leaderFullName.trim(),
+        email: form.leaderEmail.trim().toLowerCase(),
+        phone: form.leaderMobile.trim(),
+        department: form.leaderDepartment.trim(),
+        year: form.leaderYear,
+        roll_number: form.leaderRoll.trim(),
+        members: form.members.slice(0, form.teamSize - 1).map((m) => ({
+          full_name: m.fullName.trim(),
+          department: m.department.trim(),
+          year: m.year,
+          roll_number: m.rollNumber.trim(),
+        })),
       })
 
       if (!result.participant.qr_token) {
         throw new ApiError(
           500,
-          'Backend did not return qr_token. Digital Hacker Pass QR cannot be shown until the create-participant response includes qr_token.',
+          'Backend did not return qr_token. Digital Hacker Pass QR cannot be shown.',
           'QR_TOKEN_MISSING',
         )
       }
@@ -396,7 +384,7 @@ function Registration() {
       const payload: CompletedRegistration = {
         participant: result.participant,
         team: result.team,
-        role: result.role,
+        role: 'LEADER',
         saved_at: new Date().toISOString(),
       }
 
@@ -405,7 +393,7 @@ function Registration() {
       saveCompletedRegistration(payload)
       setParticipant(result.participant)
       setTeam(result.team)
-      setRole(result.role)
+      setRole('LEADER')
       setCompleted(payload)
       setAwaitingPayment(false)
       setPaymentVerified(true)
@@ -414,8 +402,8 @@ function Registration() {
     }
   }
 
-  const handleInput =
-    (field: keyof FormData) =>
+  const handleLeaderInput =
+    (field: 'leaderFullName' | 'leaderEmail' | 'leaderDepartment' | 'leaderYear' | 'leaderRoll') =>
     (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       updateField(field, event.target.value)
     }
@@ -474,7 +462,10 @@ function Registration() {
               <br />
               <span>AI ODYSSEY 24</span>
             </h1>
-            <p className="success-message">YOUR ODYSSEY BEGINS NOW.</p>
+            <p className="success-message">
+              Your team is registered. The Team Leader Digital Hacker Pass QR
+              shows all members at the gate.
+            </p>
 
             <div className="success-summary">
               <div>
@@ -495,23 +486,35 @@ function Registration() {
               </div>
               <div>
                 <span>ROLE</span>
-                <strong>
-                  {passData.role === 'LEADER' ? 'TEAM LEADER' : 'TEAM MEMBER'}
-                </strong>
+                <strong>TEAM LEADER</strong>
               </div>
               <div>
                 <span>STATUS</span>
                 <strong>{passData.teamStatus}</strong>
               </div>
             </div>
+
+            {team?.members?.length ? (
+              <div className="success-summary" style={{ marginTop: '1rem' }}>
+                {team.members.map((m) => (
+                  <div key={m.participant_id || m.hacker_id}>
+                    <span>{m.role === 'LEADER' ? 'TEAM LEADER' : 'MEMBER'}</span>
+                    <strong>
+                      {m.full_name}
+                      {m.hacker_id ? ` · ${m.hacker_id}` : ''}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <DigitalHackerPass data={passData} />
 
           {!passData.qrToken ? (
             <p className="success-inline-error no-print" role="alert">
-              Remaining backend requirement: create-participant must return
-              qr_token for the Digital Hacker Pass QR.
+              Remaining backend requirement: registration must return qr_token
+              for the Digital Hacker Pass QR.
             </p>
           ) : null}
 
@@ -530,18 +533,6 @@ function Registration() {
   }
 
   if (awaitingPayment) {
-    const draftTeamName =
-      teamMode === 'create'
-        ? teamDraft?.team_name || form.teamName
-        : previewTeam?.team_name || '—'
-    const draftTeamCode =
-      teamMode === 'create' ? 'Issued after payment' : form.teamCode
-    const draftTeamSize =
-      teamMode === 'create'
-        ? teamDraft?.team_size || form.teamSize
-        : previewTeam?.team_size
-    const draftRole = teamMode === 'create' ? 'TEAM LEADER' : 'TEAM MEMBER'
-
     return (
       <main className="registration-page success-page odyssey-reg">
         <div className="success-container">
@@ -563,32 +554,38 @@ function Registration() {
               <span>PAYMENT PROOF</span>
             </h1>
             <p className="success-message">
-              Your details stay local until you submit payment proof. Then we
-              save your registration and issue your Digital Hacker Pass.
+              Pay the full team fee once, then submit proof. We save the whole
+              squad and issue the Team Leader Digital Hacker Pass.
             </p>
 
             <div className="success-summary">
               <div>
-                <span>NAME</span>
-                <strong>{form.fullName}</strong>
-              </div>
-              <div>
                 <span>TEAM</span>
-                <strong>{draftTeamName}</strong>
+                <strong>{form.teamName}</strong>
               </div>
               <div>
-                <span>TEAM CODE</span>
-                <strong>{draftTeamCode}</strong>
+                <span>COLLEGE</span>
+                <strong>{form.college}</strong>
               </div>
               <div>
                 <span>SIZE</span>
                 <strong>
-                  {draftTeamSize ? `${draftTeamSize} MEMBERS` : '—'}
+                  {form.teamSize ? `${form.teamSize} MEMBERS` : '—'}
                 </strong>
               </div>
               <div>
-                <span>ROLE</span>
-                <strong>{draftRole}</strong>
+                <span>LEADER</span>
+                <strong>{form.leaderFullName}</strong>
+              </div>
+              <div>
+                <span>FEE</span>
+                <strong>
+                  {form.teamSize === 3
+                    ? '₹300'
+                    : form.teamSize === 4
+                      ? '₹400'
+                      : '—'}
+                </strong>
               </div>
               <div>
                 <span>STATUS</span>
@@ -599,27 +596,23 @@ function Registration() {
 
           <div className="no-print">
             <PostRegistrationActions
-              teamSize={(() => {
-                const size =
-                  teamMode === "create"
-                    ? teamDraft?.team_size || form.teamSize
-                    : previewTeam?.team_size;
-                return size === 3 || size === 4 ? size : null;
-              })()}
+              teamSize={form.teamSize === 3 || form.teamSize === 4 ? form.teamSize : null}
               onPaymentVerified={persistRegistrationAfterPayment}
             />
           </div>
 
           <div className="no-print success-pass-actions">
             <p className="success-pass-lock" role="status">
-              Submit payment proof above to save your registration and unlock
-              your Digital Hacker Pass + PDF.
+              Submit payment proof above to save your team registration and
+              unlock the Team Leader Digital Hacker Pass + PDF.
             </p>
           </div>
         </div>
       </main>
     )
   }
+
+  const memberSlots = form.teamSize ? form.teamSize - 1 : 2
 
   return (
     <main className="registration-page odyssey-reg">
@@ -651,15 +644,111 @@ function Registration() {
         <form onSubmit={(e) => void handleSubmit(e)}>
           {step === 1 && (
             <section className="registration-step" key={step} data-reveal>
-              <p className="registration-eyebrow">01 / NAME</p>
+              <p className="registration-eyebrow">01 / TEAM DETAILS</p>
               <h1>
-                IDENTIFY
+                BUILD YOUR
                 <br />
-                <span>YOURSELF.</span>
+                <span>CREW.</span>
               </h1>
               <p className="registration-description">
-                Every hacker begins with a name. Tell us who is entering the
-                Odyssey.
+                One registration for the whole team. Choose size 3 or 4, then
+                enter every member before a single team payment.
+              </p>
+
+              <div className="form-grid">
+                <div className="form-field full-width">
+                  <label>
+                    TEAM NAME
+                    <ReqMark />
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Neural Nexus"
+                    value={form.teamName}
+                    onChange={(e) => updateField('teamName', e.target.value)}
+                    disabled={actionLoading}
+                  />
+                  {errors.teamName ? (
+                    <span className="field-error">{errors.teamName}</span>
+                  ) : null}
+                </div>
+
+                <div className="form-field full-width">
+                  <label>
+                    COLLEGE / INSTITUTION
+                    <ReqMark />
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Shared by the whole team"
+                    value={form.college}
+                    onChange={(e) => updateField('college', e.target.value)}
+                    disabled={actionLoading}
+                  />
+                  {errors.college ? (
+                    <span className="field-error">{errors.college}</span>
+                  ) : null}
+                </div>
+
+                <div className="form-field full-width">
+                  <label>
+                    TEAM SIZE
+                    <ReqMark />
+                  </label>
+                  <div className="team-size-grid">
+                    <button
+                      type="button"
+                      className={form.teamSize === 3 ? 'selected' : ''}
+                      disabled={actionLoading}
+                      onClick={() => setTeamSize(3)}
+                    >
+                      <strong>3</strong>
+                      <span>MEMBERS · ₹300</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={form.teamSize === 4 ? 'selected' : ''}
+                      disabled={actionLoading}
+                      onClick={() => setTeamSize(4)}
+                    >
+                      <strong>4</strong>
+                      <span>MEMBERS · ₹400</span>
+                    </button>
+                  </div>
+                  <p className="registration-description">
+                    Member 04 appears only when you select 4. Fee is ₹100 ×
+                    members, paid once for the team.
+                  </p>
+                  {errors.teamSize ? (
+                    <span className="field-error">{errors.teamSize}</span>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="registration-actions">
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={nextStep}
+                  disabled={actionLoading}
+                >
+                  CONTINUE →
+                </button>
+              </div>
+            </section>
+          )}
+
+          {step === 2 && (
+            <section className="registration-step" key={step} data-reveal>
+              <p className="registration-eyebrow">02 / TEAM LEADER</p>
+              <h1>
+                PRIMARY
+                <br />
+                <span>CONTACT.</span>
+              </h1>
+              <p className="registration-description">
+                Only the Team Leader needs email and phone. They receive the
+                Digital Hacker Pass QR for the whole squad.
               </p>
 
               <div className="form-grid">
@@ -670,13 +759,13 @@ function Registration() {
                   </label>
                   <input
                     type="text"
-                    placeholder="Enter your full name"
-                    value={form.fullName}
-                    onChange={handleInput('fullName')}
+                    placeholder="Team Leader full name"
+                    value={form.leaderFullName}
+                    onChange={handleLeaderInput('leaderFullName')}
                     disabled={actionLoading}
                   />
-                  {errors.fullName ? (
-                    <span className="field-error">{errors.fullName}</span>
+                  {errors.leaderFullName ? (
+                    <span className="field-error">{errors.leaderFullName}</span>
                   ) : null}
                 </div>
 
@@ -688,12 +777,12 @@ function Registration() {
                   <input
                     type="email"
                     placeholder="you@example.com"
-                    value={form.email}
-                    onChange={handleInput('email')}
-                    disabled={actionLoading || Boolean(participant)}
+                    value={form.leaderEmail}
+                    onChange={handleLeaderInput('leaderEmail')}
+                    disabled={actionLoading}
                   />
-                  {errors.email ? (
-                    <span className="field-error">{errors.email}</span>
+                  {errors.leaderEmail ? (
+                    <span className="field-error">{errors.leaderEmail}</span>
                   ) : null}
                 </div>
 
@@ -707,34 +796,17 @@ function Registration() {
                     inputMode="numeric"
                     maxLength={10}
                     placeholder="10 digit mobile number"
-                    value={form.mobile}
+                    value={form.leaderMobile}
                     onChange={(event) => {
                       updateField(
-                        'mobile',
+                        'leaderMobile',
                         event.target.value.replace(/\D/g, '').slice(0, 10),
                       )
                     }}
                     disabled={actionLoading}
                   />
-                  {errors.mobile ? (
-                    <span className="field-error">{errors.mobile}</span>
-                  ) : null}
-                </div>
-
-                <div className="form-field full-width">
-                  <label>
-                    COLLEGE / INSTITUTION
-                    <ReqMark />
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Enter your college / institution"
-                    value={form.college}
-                    onChange={handleInput('college')}
-                    disabled={actionLoading}
-                  />
-                  {errors.college ? (
-                    <span className="field-error">{errors.college}</span>
+                  {errors.leaderMobile ? (
+                    <span className="field-error">{errors.leaderMobile}</span>
                   ) : null}
                 </div>
 
@@ -746,12 +818,12 @@ function Registration() {
                   <input
                     type="text"
                     placeholder="e.g. CSE"
-                    value={form.department}
-                    onChange={handleInput('department')}
+                    value={form.leaderDepartment}
+                    onChange={handleLeaderInput('leaderDepartment')}
                     disabled={actionLoading}
                   />
-                  {errors.department ? (
-                    <span className="field-error">{errors.department}</span>
+                  {errors.leaderDepartment ? (
+                    <span className="field-error">{errors.leaderDepartment}</span>
                   ) : null}
                 </div>
 
@@ -761,8 +833,8 @@ function Registration() {
                     <ReqMark />
                   </label>
                   <select
-                    value={form.year}
-                    onChange={handleInput('year')}
+                    value={form.leaderYear}
+                    onChange={handleLeaderInput('leaderYear')}
                     disabled={actionLoading}
                   >
                     <option value="">Select year</option>
@@ -772,260 +844,28 @@ function Registration() {
                       </option>
                     ))}
                   </select>
-                  {errors.year ? (
-                    <span className="field-error">{errors.year}</span>
+                  {errors.leaderYear ? (
+                    <span className="field-error">{errors.leaderYear}</span>
+                  ) : null}
+                </div>
+
+                <div className="form-field full-width">
+                  <label>
+                    REGISTER / ROLL NUMBER
+                    <ReqMark />
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="College register / roll number"
+                    value={form.leaderRoll}
+                    onChange={handleLeaderInput('leaderRoll')}
+                    disabled={actionLoading}
+                  />
+                  {errors.leaderRoll ? (
+                    <span className="field-error">{errors.leaderRoll}</span>
                   ) : null}
                 </div>
               </div>
-
-              <div className="registration-actions">
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={() => void nextStep()}
-                  disabled={actionLoading}
-                >
-                  {actionLoading ? 'CONTINUING…' : 'CONTINUE →'}
-                </button>
-              </div>
-            </section>
-          )}
-
-          {step === 2 && (
-            <section className="registration-step" key={step} data-reveal>
-              <p className="registration-eyebrow">02 / CREATE / JOIN TEAM</p>
-              <h1>
-                BUILD YOUR
-                <br />
-                <span>CREW.</span>
-              </h1>
-              <p className="registration-description">
-                AI ODYSSEY 24 teams contain exactly 3 or 4 members. Solo is not
-                allowed.
-              </p>
-
-              {participant ? (
-                <p className="registration-description">
-                  Hacker ID issued: <strong>{participant.hacker_id}</strong>
-                </p>
-              ) : (
-                <p className="registration-description">
-                  Your Hacker ID and team code are issued after payment proof is
-                  submitted.
-                </p>
-              )}
-
-              <div className="team-mode-grid">
-                <button
-                  type="button"
-                  className={`team-mode-card ${teamMode === 'create' ? 'selected' : ''}`}
-                  disabled={actionLoading || Boolean(teamDraft)}
-                  onClick={() => {
-                    setTeamMode('create')
-                    setPreviewTeam(null)
-                    setErrors({})
-                  }}
-                >
-                  <span className="team-mode-number">01</span>
-                  <strong>CREATE A TEAM</strong>
-                  <p>Start a new team and become its Team Leader.</p>
-                  <b>{teamMode === 'create' ? 'SELECTED ✓' : 'SELECT'}</b>
-                </button>
-
-                <button
-                  type="button"
-                  className={`team-mode-card ${teamMode === 'join' ? 'selected' : ''}`}
-                  disabled={actionLoading || Boolean(teamDraft)}
-                  onClick={() => {
-                    setTeamMode('join')
-                    setTeamDraft(null)
-                    setErrors({})
-                  }}
-                >
-                  <span className="team-mode-number">02</span>
-                  <strong>JOIN A TEAM</strong>
-                  <p>Enter the team code shared by your Team Leader.</p>
-                  <b>{teamMode === 'join' ? 'SELECTED ✓' : 'SELECT'}</b>
-                </button>
-              </div>
-
-              {errors.teamMode ? (
-                <span className="field-error">{errors.teamMode}</span>
-              ) : null}
-
-              {teamMode === 'create' ? (
-                <div className="team-panel">
-                  <div className="form-field">
-                    <label>
-                      TEAM NAME
-                      <ReqMark />
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Neural Nexus"
-                      value={form.teamName}
-                      onChange={handleInput('teamName')}
-                      disabled={actionLoading || Boolean(teamDraft)}
-                    />
-                    {errors.teamName ? (
-                      <span className="field-error">{errors.teamName}</span>
-                    ) : null}
-                  </div>
-
-                  <div className="form-field">
-                    <label>
-                      TEAM SIZE
-                      <ReqMark />
-                    </label>
-                    <div className="team-size-grid">
-                      <button
-                        type="button"
-                        className={form.teamSize === 3 ? 'selected' : ''}
-                        disabled={actionLoading || Boolean(teamDraft)}
-                        onClick={() => updateField('teamSize', 3)}
-                      >
-                        <strong>3</strong>
-                        <span>MEMBERS</span>
-                      </button>
-                      <button
-                        type="button"
-                        className={form.teamSize === 4 ? 'selected' : ''}
-                        disabled={actionLoading || Boolean(teamDraft)}
-                        onClick={() => updateField('teamSize', 4)}
-                      >
-                        <strong>4</strong>
-                        <span>MEMBERS</span>
-                      </button>
-                    </div>
-                    <p className="registration-description">
-                      Team size is locked after creation. Team code is issued
-                      after payment proof.
-                    </p>
-                    {errors.teamSize ? (
-                      <span className="field-error">{errors.teamSize}</span>
-                    ) : null}
-                  </div>
-
-                  {teamDraft ? (
-                    <div className="team-created-box">
-                      <span>TEAM READY</span>
-                      <strong>{teamDraft.team_name}</strong>
-                      <p>
-                        Role: <strong>TEAM LEADER</strong>
-                      </p>
-                      <p>
-                        Size: <strong>{teamDraft.team_size} MEMBERS</strong>
-                      </p>
-                      <p>
-                        Team code and Hacker ID are created when you submit
-                        payment proof.
-                      </p>
-                      <button
-                        type="button"
-                        className="primary-button"
-                        onClick={() => {
-                          setStep(3)
-                          window.scrollTo({ top: 0, behavior: 'smooth' })
-                        }}
-                      >
-                        CONTINUE TO REVIEW →
-                      </button>
-                      <button
-                        type="button"
-                        className="secondary-button step-back-button"
-                        onClick={() => {
-                          setTeamDraft(null)
-                          setRole(null)
-                        }}
-                      >
-                        CHANGE TEAM DETAILS
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      className="generate-team-button"
-                      onClick={handleCreateTeam}
-                      disabled={actionLoading}
-                    >
-                      CREATE TEAM →
-                    </button>
-                  )}
-                  {errors.teamCode && teamMode === 'create' ? (
-                    <span className="field-error">{errors.teamCode}</span>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {teamMode === 'join' ? (
-                <div className="team-panel">
-                  <div className="form-field">
-                    <label>
-                      TEAM CODE
-                      <ReqMark />
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="ODYSSEY24-0047"
-                      value={form.teamCode}
-                      onChange={(event) => {
-                        updateField('teamCode', event.target.value.toUpperCase())
-                        setPreviewTeam(null)
-                      }}
-                      disabled={actionLoading || Boolean(team)}
-                    />
-                    {errors.teamCode ? (
-                      <span className="field-error">{errors.teamCode}</span>
-                    ) : null}
-                  </div>
-
-                  <button
-                    type="button"
-                    className="generate-team-button"
-                    onClick={() => void handleFindTeam()}
-                    disabled={actionLoading || Boolean(team)}
-                  >
-                    {actionLoading ? 'LOOKING UP…' : 'FIND TEAM →'}
-                  </button>
-
-                  {previewTeam ? (
-                    <div className="team-found-box">
-                      <span>
-                        {previewTeam.available_slots <= 0
-                          ? 'TEAM FULL'
-                          : 'TEAM FOUND'}
-                      </span>
-                      <h3>{previewTeam.team_name}</h3>
-                      <p>
-                        Team Code: <strong>{previewTeam.team_code}</strong>
-                      </p>
-                      <p>
-                        Team Size:{' '}
-                        <strong>{previewTeam.team_size} MEMBERS</strong>
-                      </p>
-                      <p>
-                        Current:{' '}
-                        <strong>
-                          {previewTeam.member_count}/{previewTeam.team_size} ·{' '}
-                          {previewTeam.status}
-                        </strong>
-                      </p>
-                      <p>
-                        Available slots:{' '}
-                        <strong>{previewTeam.available_slots}</strong>
-                      </p>
-                      <p>
-                        Your Role:{' '}
-                        <strong>
-                          {previewTeam.available_slots <= 0
-                            ? 'CANNOT JOIN (FULL)'
-                            : 'TEAM MEMBER'}
-                        </strong>
-                      </p>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
 
               <div className="registration-actions">
                 <button
@@ -1039,10 +879,10 @@ function Registration() {
                 <button
                   type="button"
                   className="primary-button"
-                  onClick={() => void nextStep()}
+                  onClick={nextStep}
                   disabled={actionLoading}
                 >
-                  REVIEW →
+                  CONTINUE →
                 </button>
               </div>
             </section>
@@ -1050,55 +890,150 @@ function Registration() {
 
           {step === 3 && (
             <section className="registration-step" key={step} data-reveal>
-              <p className="registration-eyebrow">03 / REVIEW</p>
+              <p className="registration-eyebrow">03 / TEAMMATES + REVIEW</p>
               <h1>
-                READY TO ENTER
+                ADD YOUR
                 <br />
-                <span>THE ODYSSEY?</span>
+                <span>SQUAD.</span>
               </h1>
               <p className="registration-description">
-                Confirm your details, then submit payment proof. Your Digital
-                Hacker Pass is issued only after registration is saved.
+                Enter remaining members (no email or phone). Then confirm and
+                continue to the team payment of ₹
+                {form.teamSize === 4 ? '400' : '300'}.
               </p>
+
+              {Array.from({ length: memberSlots }, (_, index) => {
+                const member = form.members[index] ?? emptyMember()
+                const label = `MEMBER ${String(index + 2).padStart(2, '0')}`
+                return (
+                  <div className="team-panel" key={`member-${index}`}>
+                    <p className="registration-eyebrow">{label}</p>
+                    <div className="form-grid">
+                      <div className="form-field full-width">
+                        <label>
+                          FULL NAME
+                          <ReqMark />
+                        </label>
+                        <input
+                          type="text"
+                          placeholder={`${label} full name`}
+                          value={member.fullName}
+                          onChange={(e) =>
+                            updateMember(index, 'fullName', e.target.value)
+                          }
+                          disabled={actionLoading}
+                        />
+                        {errors[`member${index}_fullName`] ? (
+                          <span className="field-error">
+                            {errors[`member${index}_fullName`]}
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="form-field">
+                        <label>
+                          DEPARTMENT
+                          <ReqMark />
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="e.g. CSE"
+                          value={member.department}
+                          onChange={(e) =>
+                            updateMember(index, 'department', e.target.value)
+                          }
+                          disabled={actionLoading}
+                        />
+                        {errors[`member${index}_department`] ? (
+                          <span className="field-error">
+                            {errors[`member${index}_department`]}
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="form-field">
+                        <label>
+                          YEAR OF STUDY
+                          <ReqMark />
+                        </label>
+                        <select
+                          value={member.year}
+                          onChange={(e) =>
+                            updateMember(index, 'year', e.target.value)
+                          }
+                          disabled={actionLoading}
+                        >
+                          <option value="">Select year</option>
+                          {years.map((year) => (
+                            <option key={year} value={year}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                        {errors[`member${index}_year`] ? (
+                          <span className="field-error">
+                            {errors[`member${index}_year`]}
+                          </span>
+                        ) : null}
+                      </div>
+
+                      <div className="form-field full-width">
+                        <label>
+                          REGISTER / ROLL NUMBER
+                          <ReqMark />
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="College register / roll number"
+                          value={member.rollNumber}
+                          onChange={(e) =>
+                            updateMember(index, 'rollNumber', e.target.value)
+                          }
+                          disabled={actionLoading}
+                        />
+                        {errors[`member${index}_rollNumber`] ? (
+                          <span className="field-error">
+                            {errors[`member${index}_rollNumber`]}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
 
               <div className="review-container">
                 <div className="review-section">
                   <div className="review-heading">
                     <span>01</span>
-                    <strong>HACKER PROFILE</strong>
+                    <strong>TEAM</strong>
                     <button type="button" onClick={() => setStep(1)}>
                       EDIT
                     </button>
                   </div>
                   <div className="review-grid">
                     <div>
-                      <span>NAME</span>
-                      <strong>{form.fullName}</strong>
-                    </div>
-                    <div>
-                      <span>EMAIL</span>
-                      <strong>{form.email}</strong>
-                    </div>
-                    <div>
-                      <span>MOBILE</span>
-                      <strong>{form.mobile}</strong>
+                      <span>TEAM</span>
+                      <strong>{form.teamName || '—'}</strong>
                     </div>
                     <div>
                       <span>COLLEGE</span>
-                      <strong>{form.college}</strong>
+                      <strong>{form.college || '—'}</strong>
                     </div>
                     <div>
-                      <span>DEPARTMENT</span>
-                      <strong>{form.department}</strong>
-                    </div>
-                    <div>
-                      <span>YEAR</span>
-                      <strong>{form.year}</strong>
-                    </div>
-                    <div>
-                      <span>HACKER ID</span>
+                      <span>SIZE</span>
                       <strong>
-                        {participant?.hacker_id || 'Issued after payment'}
+                        {form.teamSize ? `${form.teamSize} MEMBERS` : '—'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span>FEE</span>
+                      <strong>
+                        {form.teamSize === 3
+                          ? '₹300'
+                          : form.teamSize === 4
+                            ? '₹400'
+                            : '—'}
                       </strong>
                     </div>
                   </div>
@@ -1107,63 +1042,35 @@ function Registration() {
                 <div className="review-section">
                   <div className="review-heading">
                     <span>02</span>
-                    <strong>TEAM</strong>
+                    <strong>TEAM LEADER</strong>
                     <button type="button" onClick={() => setStep(2)}>
                       EDIT
                     </button>
                   </div>
-                  {teamMode === 'create' && teamDraft ? (
-                    <div className="team-code-banner">
-                      <span>TEAM CODE</span>
-                      <strong>Issued after payment proof</strong>
-                      <p>
-                        After you submit payment proof, your team code appears
-                        here for teammates to join.
-                      </p>
-                    </div>
-                  ) : null}
                   <div className="review-grid">
                     <div>
-                      <span>TEAM</span>
-                      <strong>
-                        {teamMode === 'create'
-                          ? teamDraft?.team_name || form.teamName
-                          : previewTeam?.team_name || '—'}
-                      </strong>
+                      <span>NAME</span>
+                      <strong>{form.leaderFullName || '—'}</strong>
                     </div>
                     <div>
-                      <span>TEAM CODE</span>
-                      <strong>
-                        {teamMode === 'create'
-                          ? 'Issued after payment'
-                          : form.teamCode}
-                      </strong>
+                      <span>EMAIL</span>
+                      <strong>{form.leaderEmail || '—'}</strong>
                     </div>
                     <div>
-                      <span>TEAM SIZE</span>
-                      <strong>
-                        {teamMode === 'create'
-                          ? `${teamDraft?.team_size || form.teamSize} MEMBERS`
-                          : `${previewTeam?.team_size || '—'} MEMBERS`}
-                      </strong>
+                      <span>MOBILE</span>
+                      <strong>{form.leaderMobile || '—'}</strong>
                     </div>
                     <div>
-                      <span>ROLE</span>
-                      <strong>
-                        {teamMode === 'create' ? 'TEAM LEADER' : 'TEAM MEMBER'}
-                      </strong>
+                      <span>DEPT</span>
+                      <strong>{form.leaderDepartment || '—'}</strong>
                     </div>
                     <div>
-                      <span>STATUS</span>
-                      <strong>
-                        {teamMode === 'create'
-                          ? teamDraft
-                            ? `1/${teamDraft.team_size} · AWAITING PAYMENT`
-                            : '—'
-                          : previewTeam
-                            ? `${previewTeam.member_count}/${previewTeam.team_size} · ${previewTeam.status}`
-                            : '—'}
-                      </strong>
+                      <span>YEAR</span>
+                      <strong>{form.leaderYear || '—'}</strong>
+                    </div>
+                    <div>
+                      <span>ROLL</span>
+                      <strong>{form.leaderRoll || '—'}</strong>
                     </div>
                   </div>
                 </div>
@@ -1172,9 +1079,9 @@ function Registration() {
               <div className="confirmation-note">
                 <span>✓</span>
                 <p>
-                  By confirming, you verify that the information above is
-                  correct. Registration is saved to the database only after you
-                  submit payment proof on the next step.
+                  By confirming, you verify that all team details are correct.
+                  Registration is saved only after you submit the team payment
+                  proof on the next step.
                 </p>
               </div>
 
