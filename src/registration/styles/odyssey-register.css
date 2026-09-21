@@ -1407,8 +1407,50 @@
   display: none !important;
 }
 
+/* Locked desktop credential layout for PDF capture (ignore mobile stacking) */
 .hacker-pass--pdf {
-  border-radius: 12px !important;
+  width: 760px !important;
+  max-width: 760px !important;
+  margin: 0 !important;
+  border-radius: 18px !important;
+  box-shadow: none !important;
+  animation: none !important;
+  transform: none !important;
+}
+
+.hacker-pass--pdf .hacker-pass__top {
+  flex-direction: row !important;
+  align-items: flex-start !important;
+}
+
+.hacker-pass--pdf .hacker-pass__body {
+  display: grid !important;
+  grid-template-columns: 1.35fr 0.85fr !important;
+  gap: 28px !important;
+}
+
+.hacker-pass--pdf .hacker-pass__qr-panel {
+  width: auto !important;
+}
+
+.hacker-pass--pdf .hacker-pass__logo {
+  width: 96px !important;
+}
+
+/* html2canvas often fails on background-clip text — use solid brand color */
+.hacker-pass--pdf .hacker-pass__brand,
+.hacker-pass--pdf .hacker-pass__name {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+.hacker-pass--pdf .hacker-pass__meta {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(0, 0, 0, 0.35) !important;
 }
 
 @media (max-width: 700px) {

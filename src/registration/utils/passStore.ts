@@ -443,37 +443,49 @@ export async function downloadHackerPassPdf(
   const { jsPDF } = await import('jspdf')
   const fileBase = `AI-ODYSSEY-24-${data.hackerId || 'pass'}`
 
+  // Always capture from a fixed-width offscreen host so mobile CSS never
+  // collapses the credential into a stacked layout inside the PDF.
+  const host = document.createElement('div')
+  host.setAttribute('aria-hidden', 'true')
+  host.style.cssText =
+    'position:fixed;left:-10000px;top:0;width:760px;pointer-events:none;z-index:-1;'
+
   const existing = document.getElementById(passElementId)
   let target: HTMLElement
-  let cleanup: (() => void) | null = null
 
   if (existing) {
-    target = existing
+    const clone = existing.cloneNode(true) as HTMLElement
+    clone.id = `${passElementId}-pdf-clone`
+    clone.classList.add('hacker-pass--pdf')
+    clone.style.margin = '0'
+    clone.style.maxWidth = '760px'
+    clone.style.width = '760px'
+    clone.style.boxShadow = 'none'
+    clone.style.animation = 'none'
+    host.appendChild(clone)
+    target = clone
   } else {
     const html = await buildHackerPassHtml(data)
-    const host = document.createElement('div')
-    host.setAttribute('aria-hidden', 'true')
-    host.style.cssText =
-      'position:fixed;left:-10000px;top:0;width:760px;pointer-events:none;opacity:0;'
     host.innerHTML = html
-    document.body.appendChild(host)
     const passRoot =
       host.querySelector<HTMLElement>('#pass-root') ??
+      host.querySelector<HTMLElement>('.hacker-pass') ??
       host.querySelector<HTMLElement>('.pass')
     if (!passRoot) {
-      host.remove()
       throw new Error('Unable to build hacker pass for PDF export.')
     }
+    passRoot.classList.add('hacker-pass--pdf')
     target = passRoot
-    cleanup = () => host.remove()
   }
+
+  document.body.appendChild(host)
 
   try {
     const images = Array.from(target.querySelectorAll('img'))
     await Promise.all(
       images.map(
         (img) =>
-          img.complete
+          img.complete && img.naturalWidth > 0
             ? Promise.resolve()
             : new Promise<void>((resolve) => {
                 img.addEventListener('load', () => resolve(), { once: true })
@@ -481,6 +493,10 @@ export async function downloadHackerPassPdf(
               }),
       ),
     )
+    // Let QR / logo paint settle before rasterizing.
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve())
+    })
 
     const canvas = await html2canvas(target, {
       scale: 3,
@@ -488,20 +504,57 @@ export async function downloadHackerPassPdf(
       useCORS: true,
       allowTaint: true,
       logging: false,
-      onclone: (_doc, el) => {
+      // Force desktop media-query evaluation while capturing.
+      windowWidth: 1200,
+      windowHeight: 900,
+      onclone: (clonedDoc, el) => {
         el.classList.add('hacker-pass--pdf')
         el.style.animation = 'none'
         el.style.margin = '0'
+        el.style.width = '760px'
         el.style.maxWidth = '760px'
         el.style.boxShadow = 'none'
+        el.style.transform = 'none'
+
+        const body = el.querySelector<HTMLElement>('.hacker-pass__body')
+        if (body) {
+          body.style.display = 'grid'
+          body.style.gridTemplateColumns = '1.35fr 0.85fr'
+          body.style.gap = '28px'
+        }
+        const top = el.querySelector<HTMLElement>('.hacker-pass__top')
+        if (top) {
+          top.style.flexDirection = 'row'
+          top.style.alignItems = 'flex-start'
+        }
+
+        // Solid text colors — gradient clipped text often vanishes in html2canvas.
+        el.querySelectorAll<HTMLElement>(
+          '.hacker-pass__brand, .hacker-pass__name',
+        ).forEach((node) => {
+          node.style.background = 'none'
+          node.style.webkitBackgroundClip = 'unset'
+          node.style.backgroundClip = 'unset'
+          node.style.color = '#ffffff'
+          node.style.webkitTextFillColor = '#ffffff'
+        })
+
         el.querySelectorAll<HTMLElement>('*').forEach((node) => {
           node.style.animation = 'none'
           node.style.transition = 'none'
         })
+
+        // Ensure images in the clone keep absolute URLs for CORS.
+        clonedDoc.querySelectorAll('img').forEach((img) => {
+          const src = img.getAttribute('src')
+          if (src && src.startsWith('/')) {
+            img.setAttribute('src', `${window.location.origin}${src}`)
+          }
+        })
       },
     })
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.95)
+    const imgData = canvas.toDataURL('image/jpeg', 0.96)
     const pdf = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
@@ -519,59 +572,24 @@ export async function downloadHackerPassPdf(
     const pageW = pdf.internal.pageSize.getWidth()
     const pageH = pdf.internal.pageSize.getHeight()
 
-    // Clean document page
-    pdf.setFillColor(8, 5, 16)
+    // Single clean page: Odyssey dark background + centered pass only.
+    pdf.setFillColor(11, 6, 22)
     pdf.rect(0, 0, pageW, pageH, 'F')
 
-    const marginX = 12
-    const marginY = 12
-    const headerH = 8
-    const footerH = 8
+    const marginX = 10
+    const marginY = 10
     const maxW = pageW - marginX * 2
-    const maxH = pageH - marginY * 2 - headerH - footerH
+    const maxH = pageH - marginY * 2
     const ratio = Math.min(maxW / canvas.width, maxH / canvas.height)
     const w = canvas.width * ratio
     const h = canvas.height * ratio
     const x = (pageW - w) / 2
-    const y = marginY + headerH + (maxH - h) / 2
+    const y = (pageH - h) / 2
 
-    pdf.setTextColor(210, 160, 255)
-    pdf.setFont('helvetica', 'bold')
-    pdf.setFontSize(9)
-    pdf.text('AI ODYSSEY 24', marginX, marginY + 4)
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(8)
-    pdf.setTextColor(180, 170, 200)
-    pdf.text('Official Digital Credential', pageW - marginX, marginY + 4, {
-      align: 'right',
-    })
-
-    pdf.setDrawColor(90, 60, 120)
-    pdf.setLineWidth(0.2)
-    pdf.line(marginX, marginY + 6, pageW - marginX, marginY + 6)
-
-    pdf.setFillColor(12, 8, 24)
-    pdf.roundedRect(x - 1.5, y - 1.5, w + 3, h + 3, 1.5, 1.5, 'F')
     pdf.addImage(imgData, 'JPEG', x, y, w, h, undefined, 'FAST')
-
-    pdf.setDrawColor(90, 60, 120)
-    pdf.line(marginX, pageH - marginY - 3, pageW - marginX, pageH - marginY - 3)
-
-    const issued = new Date().toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    })
-    pdf.setFont('helvetica', 'normal')
-    pdf.setFontSize(7)
-    pdf.setTextColor(160, 150, 180)
-    pdf.text(`${data.hackerId || 'PASS'}  ·  ${data.teamCode || ''}`, marginX, pageH - marginY)
-    pdf.text(`Issued ${issued}`, pageW - marginX, pageH - marginY, {
-      align: 'right',
-    })
-
     pdf.save(`${fileBase}.pdf`)
   } finally {
-    cleanup?.()
+    host.remove()
   }
 }
 
