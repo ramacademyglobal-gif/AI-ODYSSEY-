@@ -138,16 +138,19 @@ async function insertParticipantCompatible(
   hacker_id: string,
   qr_token: string,
 ): Promise<{ data: ParticipantRow | null; error: { code?: string; message?: string } | null }> {
-  const paymentFields =
-    input.payment_txn_id && input.payment_drive_file_url
-      ? {
-          payment_txn_id: input.payment_txn_id,
-          payment_drive_file_id: input.payment_drive_file_id ?? null,
-          payment_drive_file_url: input.payment_drive_file_url,
-          payment_verified_at:
-            input.payment_verified_at ?? new Date().toISOString(),
-        }
-      : null;
+  const requiresPayment = Boolean(
+    input.payment_txn_id?.trim() && input.payment_drive_file_url?.trim(),
+  );
+
+  const paymentFields = requiresPayment
+    ? {
+        payment_txn_id: input.payment_txn_id!.trim(),
+        payment_drive_file_id: input.payment_drive_file_id ?? null,
+        payment_drive_file_url: input.payment_drive_file_url!,
+        payment_verified_at:
+          input.payment_verified_at ?? new Date().toISOString(),
+      }
+    : null;
 
   const roll = input.roll_number?.trim();
 
@@ -161,121 +164,132 @@ async function insertParticipantCompatible(
     year: input.year,
   };
 
-  const attempts: Record<string, unknown>[] = [
-    {
-      ...baseFields,
-      qr_token,
-      status: "REGISTERED",
-      ...(roll ? { roll_number: roll } : {}),
-      ...(paymentFields ?? {}),
-    },
-    {
-      ...baseFields,
-      qr_token,
-      status: "REGISTERED",
-      ...(paymentFields ?? {}),
-    },
-    {
-      ...baseFields,
-      qr_token,
-      status: "REGISTERED",
-      // Fallback when roll_number column is missing: keep roll visible in department.
-      department: roll
-        ? `${input.department} · Roll ${roll}`.slice(0, 150)
-        : input.department,
-      ...(paymentFields ?? {}),
-    },
-    {
-      ...baseFields,
-      qr_token,
-      status: "REGISTERED",
-    },
-    {
-      ...baseFields,
-      status: "REGISTERED",
-    },
-    {
-      hacker_id,
-      full_name: input.full_name,
-      email: input.email,
-      phone: input.phone,
-      college: input.college,
-      status: "REGISTERED",
-    },
-    {
-      hacker_id,
-      full_name: input.full_name,
-      email: input.email,
-      phone: input.phone,
-      college: input.college,
-    },
-  ];
+  // When payment is required, NEVER insert a participant without payment fields.
+  // Old fallbacks created orphan rows in Supabase while the UI showed an error.
+  const attempts: Record<string, unknown>[] = requiresPayment
+    ? [
+        {
+          ...baseFields,
+          qr_token,
+          status: "REGISTERED",
+          ...(roll ? { roll_number: roll } : {}),
+          ...paymentFields!,
+        },
+        {
+          ...baseFields,
+          qr_token,
+          status: "REGISTERED",
+          ...paymentFields!,
+        },
+        {
+          ...baseFields,
+          qr_token,
+          status: "REGISTERED",
+          department: roll
+            ? `${input.department} · Roll ${roll}`.slice(0, 150)
+            : input.department,
+          ...paymentFields!,
+        },
+      ]
+    : [
+        {
+          ...baseFields,
+          qr_token,
+          status: "REGISTERED",
+          ...(roll ? { roll_number: roll } : {}),
+        },
+        {
+          ...baseFields,
+          qr_token,
+          status: "REGISTERED",
+        },
+        {
+          ...baseFields,
+          qr_token,
+          status: "REGISTERED",
+          department: roll
+            ? `${input.department} · Roll ${roll}`.slice(0, 150)
+            : input.department,
+        },
+        {
+          ...baseFields,
+          status: "REGISTERED",
+        },
+        {
+          hacker_id,
+          full_name: input.full_name,
+          email: input.email,
+          phone: input.phone,
+          college: input.college,
+          status: "REGISTERED",
+        },
+        {
+          hacker_id,
+          full_name: input.full_name,
+          email: input.email,
+          phone: input.phone,
+          college: input.college,
+        },
+      ];
 
   let lastError: { code?: string; message?: string } | null = null;
 
   for (const payload of attempts) {
     const result = await insertParticipant(payload);
     if (!result.error && result.data) {
-      const patch: Record<string, unknown> = {};
-      if (!result.data.qr_token) patch.qr_token = qr_token;
-      if (!result.data.department) patch.department = input.department;
-      if (!result.data.year) patch.year = input.year;
-      if (roll && !(result.data as ParticipantRow).roll_number) {
-        patch.roll_number = roll;
-      }
-      if (paymentFields && !result.data.payment_txn_id) {
-        Object.assign(patch, paymentFields);
-      }
-      if (Object.keys(patch).length > 0) {
-        const { data: updated, error: patchError } = await supabase
-          .from("participants")
-          .update(patch)
-          .eq("id", result.data.id)
-          .select("*")
-          .maybeSingle();
-        if (
-          patchError &&
-          paymentFields &&
-          (missingColumn(patchError.message, "payment_txn_id") ||
-            missingColumn(patchError.message, "payment_drive_file_url") ||
-            /schema cache/i.test(patchError.message))
-        ) {
-          throw new AppError(
-            500,
-            "Payment columns missing. Run database/migrations/add_payment_proof_columns.sql in Supabase SQL editor.",
-            "PAYMENT_COLUMNS_MISSING",
-          );
-        }
-        // Ignore missing roll_number column on patch
-        if (
-          patchError &&
-          (missingColumn(patchError.message, "roll_number") ||
-            /schema cache/i.test(patchError.message ?? ""))
-        ) {
-          return result;
-        }
-        if (updated) {
-          return { data: updated as ParticipantRow, error: null };
-        }
-      }
       return result;
     }
 
     lastError = result.error;
+    const msg = result.error?.message ?? "";
+
+    if (/value too long for type character varying/i.test(msg)) {
+      throw new AppError(
+        500,
+        "Database column is too short for the transaction ID. In Supabase SQL Editor run: backend/database/migrations/fix_payment_txn_column_width.sql",
+        "PAYMENT_TXN_COLUMN_TOO_SHORT",
+      );
+    }
+
     if (isUniqueViolation(result.error)) {
       return result;
     }
+
+    if (requiresPayment) {
+      // Do not silently skip payment columns — surface schema issues clearly.
+      if (
+        missingColumn(msg, "payment_txn_id") ||
+        missingColumn(msg, "payment_drive_file_id") ||
+        missingColumn(msg, "payment_drive_file_url") ||
+        missingColumn(msg, "payment_verified_at") ||
+        /schema cache/i.test(msg)
+      ) {
+        throw new AppError(
+          500,
+          "Payment columns missing or outdated. Run database/migrations/fix_payment_txn_column_width.sql in Supabase SQL editor.",
+          "PAYMENT_COLUMNS_MISSING",
+        );
+      }
+      // Try next payment-compatible payload (e.g. without roll_number)
+      if (
+        missingColumn(msg, "roll_number") ||
+        missingColumn(msg, "qr_token") ||
+        missingColumn(msg, "department") ||
+        missingColumn(msg, "year") ||
+        missingColumn(msg, "status")
+      ) {
+        continue;
+      }
+      return result;
+    }
+
     if (
-      !missingColumn(result.error?.message, "qr_token") &&
-      !missingColumn(result.error?.message, "department") &&
-      !missingColumn(result.error?.message, "year") &&
-      !missingColumn(result.error?.message, "status") &&
-      !missingColumn(result.error?.message, "roll_number") &&
-      !missingColumn(result.error?.message, "payment_txn_id") &&
-      !missingColumn(result.error?.message, "payment_drive_file_id") &&
-      !missingColumn(result.error?.message, "payment_drive_file_url") &&
-      !missingColumn(result.error?.message, "payment_verified_at") &&
-      !/schema cache/i.test(result.error?.message ?? "")
+      !missingColumn(msg, "qr_token") &&
+      !missingColumn(msg, "department") &&
+      !missingColumn(msg, "year") &&
+      !missingColumn(msg, "status") &&
+      !missingColumn(msg, "roll_number") &&
+      !/schema cache/i.test(msg)
     ) {
       return result;
     }
@@ -333,11 +347,21 @@ export async function createParticipant(
     const hacker_id = generateHackerId();
     const qr_token = generateQrToken();
 
-    const { data, error } = await insertParticipantCompatible(
-      input,
-      hacker_id,
-      qr_token,
-    );
+    let data: ParticipantRow | null = null;
+    let error: { code?: string; message?: string } | null = null;
+    try {
+      const result = await insertParticipantCompatible(
+        input,
+        hacker_id,
+        qr_token,
+      );
+      data = result.data;
+      error = result.error;
+    } catch (err) {
+      // Preserve typed schema errors (column too short / missing payment columns)
+      if (err instanceof AppError) throw err;
+      throw err;
+    }
 
     if (!error && data) {
       return {
@@ -416,4 +440,28 @@ export async function getParticipantByHackerId(
   }
 
   return data as ParticipantRow;
+}
+
+/** Remove a participant row (and membership). Used for failed-registration rollback. */
+export async function deleteParticipantById(participantId: string): Promise<void> {
+  await supabase.from("team_members").delete().eq("participant_id", participantId);
+  await supabase.from("checkins").delete().eq("participant_id", participantId);
+  await supabase.from("participants").delete().eq("id", participantId);
+}
+
+/** Delete team(s) led by this participant, then the participant. */
+export async function rollbackLeaderRegistration(
+  leaderParticipantId: string,
+): Promise<void> {
+  const { data: teams } = await supabase
+    .from("teams")
+    .select("id")
+    .eq("leader_participant_id", leaderParticipantId);
+
+  for (const team of teams ?? []) {
+    await supabase.from("team_members").delete().eq("team_id", team.id);
+    await supabase.from("teams").delete().eq("id", team.id);
+  }
+
+  await deleteParticipantById(leaderParticipantId);
 }

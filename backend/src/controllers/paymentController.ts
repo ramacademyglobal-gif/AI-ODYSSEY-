@@ -70,6 +70,9 @@ export async function registerWithPaymentProof(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
+  let createdLeaderId: string | null = null;
+  const createdMemberIds: string[] = [];
+
   try {
     const file = req.file;
     if (!file) {
@@ -145,6 +148,7 @@ export async function registerWithPaymentProof(
       payment_drive_file_url: stored.file_url,
       payment_verified_at: new Date().toISOString(),
     });
+    createdLeaderId = leader.id;
 
     let team = await teamService.createTeam({
       team_name: teamPayload.team_name,
@@ -160,6 +164,7 @@ export async function registerWithPaymentProof(
         year: member.year,
         roll_number: member.roll_number,
       });
+      createdMemberIds.push(mate.id);
       team = await teamService.joinTeam({
         team_code: team.team_code,
         participant_id: mate.id,
@@ -180,6 +185,17 @@ export async function registerWithPaymentProof(
       },
     });
   } catch (err) {
+    // Roll back partial squad so failed registration does not leave rows in Supabase
+    try {
+      for (const id of [...createdMemberIds].reverse()) {
+        await participantService.deleteParticipantById(id);
+      }
+      if (createdLeaderId) {
+        await participantService.rollbackLeaderRegistration(createdLeaderId);
+      }
+    } catch (cleanupErr) {
+      console.error("Registration rollback failed:", cleanupErr);
+    }
     next(err);
   }
 }
