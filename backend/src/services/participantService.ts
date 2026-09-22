@@ -303,7 +303,8 @@ function syntheticMemberContact(seed: string): { email: string; phone: string } 
     seed.replace(/[^a-zA-Z0-9]/g, "").slice(0, 16).toLowerCase() || "member";
   const suffix = randomBytes(4).toString("hex");
   const email = `${clean}.${suffix}@members.odyssey24.local`;
-  const digits = randomBytes(8);
+  // Exactly 10 digits: leading 9 + 9 from randomBytes(9) (never go past buffer length)
+  const digits = randomBytes(9);
   let phone = "9";
   for (let i = 0; i < 9; i++) {
     phone += String(digits[i]! % 10);
