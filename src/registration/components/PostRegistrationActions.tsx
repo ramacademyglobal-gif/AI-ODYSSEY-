@@ -88,8 +88,7 @@ export function PostRegistrationActions({
       if (!result.ok) {
         setScreenshotValid(false)
         setFileError(
-          result.message ??
-            'Upload the correct payment screenshot image.',
+          result.message ?? 'Upload a JPG, PNG, or WEBP payment screenshot.',
         )
         event.target.value = ''
         return
@@ -103,9 +102,7 @@ export function PostRegistrationActions({
       setFileError(null)
     } catch {
       setScreenshotValid(false)
-      setFileError(
-        'Could not validate that image. Upload the correct payment screenshot.',
-      )
+      setFileError('Could not read that image. Try another JPG, PNG, or WEBP file.')
       event.target.value = ''
     } finally {
       setChecking(false)
@@ -126,8 +123,7 @@ export function PostRegistrationActions({
       screenshotValid && Boolean(previewUrl) && Boolean(fileName) && Boolean(proofFile)
     if (!hasValidScreenshot) {
       setFileError(
-        fileError ||
-          'Upload the correct payment screenshot image (UPI confirmation after scanning the QR).',
+        fileError || 'Upload a payment screenshot image (JPG, PNG, or WEBP).',
       )
     }
 
@@ -183,9 +179,9 @@ export function PostRegistrationActions({
         </p>
         <p className="success-payment__hint">
           Scan the UPI QR for the full team amount
-          {teamTotal ? ` (₹${teamTotal})` : ' (₹300 or ₹400)'}. Upload a light-
-          or dark-mode payment receipt where the Transaction ID and paid amount
-          are clearly visible.
+          {teamTotal ? ` (₹${teamTotal})` : ' (₹300 or ₹400)'}. Upload any
+          payment screenshot (UPI / bank / BHIM / GPay / PhonePe / etc.) and
+          type the Transaction ID / UTR below.
         </p>
         <ul className="success-payment__notices" aria-label="Payment rules">
           {EVENT_CONFIG.payment.notices.map((notice) => (
@@ -212,10 +208,10 @@ export function PostRegistrationActions({
             htmlFor="payment-screenshot"
           >
             <span className="success-payment-proof__drop-title">
-              {checking ? 'Reading screenshot…' : 'Upload payment screenshot'}
+              {checking ? 'Uploading…' : 'Upload payment screenshot'}
             </span>
             <span className="success-payment-proof__drop-sub">
-              JPG / PNG / WEBP · Transaction ID / UTR must be visible in the image
+              JPG / PNG / WEBP · any UPI or bank payment screenshot
             </span>
             {fileName && screenshotValid ? (
               <span className="success-payment-proof__file">{fileName}</span>
@@ -281,7 +277,7 @@ export function PostRegistrationActions({
 
           {submitted ? (
             <p className="success-payment-proof__ok" role="status">
-              Payment proof verified. Registration saved. Print and download are now unlocked.
+              Payment proof submitted. Registration saved. Print and download are now unlocked.
             </p>
           ) : null}
 
@@ -292,7 +288,7 @@ export function PostRegistrationActions({
             aria-disabled={!canSubmit}
           >
             {checking
-              ? 'VALIDATING…'
+              ? 'UPLOADING…'
               : submitting
                 ? 'SAVING REGISTRATION…'
                 : 'SUBMIT PAYMENT PROOF →'}

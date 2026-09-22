@@ -35,7 +35,7 @@ export const EVENT_CONFIG = {
       'Team of 3 members = ₹300 total (one payment).',
       'Team of 4 members = ₹400 total (one payment).',
       'Pay the full team amount in one UPI transfer.',
-      'Upload one payment screenshot showing ₹300 or ₹400 and the Transaction ID / UTR (light or dark mode OK).',
+      'Upload any payment screenshot (JPG / PNG / WEBP) and enter the Transaction ID / UTR.',
       'Payments are non-refundable.',
     ],
   },
