@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   DigitalHackerPass,
   type DigitalHackerPassData,
@@ -85,6 +86,7 @@ function formatApiError(err: unknown): string {
 }
 
 function Registration() {
+  const previewClosed = useSearchParams().get("preview") === "closed"
   const [step, setStep] = useState(1)
   const [errors, setErrors] = useState<Errors>({})
   const [submitting] = useState(false)
@@ -474,6 +476,10 @@ function Registration() {
     (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       updateField(field, event.target.value)
     }
+
+  if (previewClosed) {
+    return <RegistrationClosed />
+  }
 
   if (!(completed && paymentVerified)) {
     if (!capacityReady) {
