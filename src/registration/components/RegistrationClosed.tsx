@@ -2,34 +2,45 @@
 
 import "./RegistrationClosed.css";
 
-/** Closed screen. Title turns in on the Z/X axis, then settles. Site colors and type stay. */
-export function RegistrationClosed({ checking = false }: { checking?: boolean }) {
-  return (
-    <main className="reg-closed odyssey-reg" aria-labelledby="reg-closed-title">
-      <div className="reg-closed__stage">
-        <div className="reg-closed__plate reg-closed__plate--mark" aria-hidden="true">
-          <span className="reg-closed__ring" />
-          <span className="reg-closed__core" />
-        </div>
+const HERO = "AI ODYSSEY".split("");
 
-        {checking ? (
-          <p className="reg-closed__status">Checking capacity</p>
-        ) : (
-          <>
-            <p className="reg-closed__status reg-closed__plate reg-closed__plate--status">
-              Capacity reached
-            </p>
-            <h1
-              id="reg-closed-title"
-              className="reg-closed__title reg-closed__plate reg-closed__plate--title"
-            >
-              Registrations are closed.
-            </h1>
-            <p className="reg-closed__wait reg-closed__plate reg-closed__plate--wait">
-              Wait for <span className="reg-closed__mark">AI Odyssey 2.0</span>
-            </p>
-          </>
-        )}
+/** Closed screen. Cinematic 3D title motion, with Odyssey words only. */
+export function RegistrationClosed({ checking = false }: { checking?: boolean }) {
+  if (checking) {
+    return (
+      <main className="cine odyssey-reg">
+        <p className="cine__status">Checking capacity</p>
+      </main>
+    );
+  }
+
+  return (
+    <main className="cine odyssey-reg" aria-labelledby="reg-closed-title">
+      <div className="cine__spark" aria-hidden="true" />
+      <div className="cine__burst" aria-hidden="true" />
+      <div className="cine__flare" aria-hidden="true" />
+
+      <p className="cine__hero" aria-hidden="true">
+        {HERO.map((char, index) => (
+          <span
+            key={`${char}-${index}`}
+            className="cine__letter"
+            style={{ animationDelay: `${0.55 + index * 0.07}s` }}
+          >
+            {char === " " ? "\u00a0" : char}
+          </span>
+        ))}
+      </p>
+
+      <p className="cine__version" aria-hidden="true">
+        2.0
+      </p>
+
+      <div className="cine__lock">
+        <p className="cine__kicker">Registrations are closed</p>
+        <h1 id="reg-closed-title" className="cine__title">
+          Wait for <span>AI Odyssey 2.0</span>
+        </h1>
       </div>
     </main>
   );
