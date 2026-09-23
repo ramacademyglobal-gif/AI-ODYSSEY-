@@ -165,29 +165,9 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding-bottom: 10rem;
   text-align: center;
   opacity: 0;
   animation: cine-final 12s linear forwards;
-}
-
-.cine__score {
-  position: absolute;
-  right: 1rem;
-  bottom: 1rem;
-  left: 1rem;
-  z-index: 6;
-  width: min(100% - 2rem, 28rem);
-  margin-inline: auto;
-  overflow: hidden;
-  border-radius: 12px;
-  pointer-events: auto;
-}
-
-.cine__score iframe {
-  display: block;
-  width: 100%;
-  border: 0;
 }
 
 .cine__kicker {
