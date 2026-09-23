@@ -75,6 +75,17 @@ export function RegistrationClosed({ checking = false }: { checking?: boolean })
           <span>AI Odyssey 2.0</span>
         </h1>
       </div>
+
+      <aside className="cine__score">
+        <iframe
+          title="Mission: Impossible – Dead Reckoning Part One (Music from the Official Teaser Trailer) by Lorne Balfe on Spotify"
+          src="https://open.spotify.com/embed/track/1lMTmKwVlSVhqGhFcqPLLJ?utm_source=generator&theme=0"
+          width="100%"
+          height="152"
+          allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+          loading="eager"
+        />
+      </aside>
     </main>
   );
 }
