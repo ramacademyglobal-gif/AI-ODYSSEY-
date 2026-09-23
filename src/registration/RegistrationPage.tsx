@@ -7,13 +7,16 @@ import {
   type DigitalHackerPassData,
 } from "@/registration/components/DigitalHackerPass";
 import { PostRegistrationActions } from "@/registration/components/PostRegistrationActions";
+import { RegistrationClosed } from "@/registration/components/RegistrationClosed";
 import {
   ApiError,
   checkRegistrationAvailability,
+  fetchRegistrationCapacity,
   getTeam,
   registerWithPaymentProof,
   type ApiParticipant,
   type ApiTeam,
+  type RegistrationCapacity,
 } from "@/registration/services/api";
 import {
   buildPassSnapshotFromRegistration,
@@ -120,6 +123,9 @@ function Registration() {
   )
   const [awaitingPayment, setAwaitingPayment] = useState(false)
   const [paymentVerified, setPaymentVerified] = useState(() => Boolean(restored))
+  const [forcedClosed, setForcedClosed] = useState(false)
+  const [capacity, setCapacity] = useState<RegistrationCapacity | null>(null)
+  const [capacityReady, setCapacityReady] = useState(false)
   const skipStepVeil = useRef(true)
   useRevealOnScroll([step, awaitingPayment, completed, paymentVerified])
 
@@ -130,6 +136,23 @@ function Registration() {
     }
     triggerRouteVeil()
   }, [step, awaitingPayment, paymentVerified])
+
+  useEffect(() => {
+    let cancelled = false
+    void fetchRegistrationCapacity()
+      .then((next) => {
+        if (!cancelled) setCapacity(next)
+      })
+      .catch(() => {
+        if (!cancelled) setCapacity(null)
+      })
+      .finally(() => {
+        if (!cancelled) setCapacityReady(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     const code = completed?.team?.team_code
@@ -439,6 +462,9 @@ function Registration() {
       setAwaitingPayment(false)
       setPaymentVerified(true)
     } catch (err) {
+      if (err instanceof ApiError && err.code === 'REGISTRATION_CLOSED') {
+        setForcedClosed(true)
+      }
       throw new Error(formatApiError(err), { cause: err })
     }
   }
@@ -448,6 +474,15 @@ function Registration() {
     (event: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
       updateField(field, event.target.value)
     }
+
+  if (!(completed && paymentVerified)) {
+    if (!capacityReady) {
+      return <RegistrationClosed checking />
+    }
+    if (forcedClosed || (capacity != null && !capacity.open)) {
+      return <RegistrationClosed />
+    }
+  }
 
   if (completed && passData && paymentVerified) {
     return (
@@ -749,7 +784,10 @@ function Registration() {
                     <button
                       type="button"
                       className={form.teamSize === 4 ? 'selected' : ''}
-                      disabled={actionLoading}
+                      disabled={
+                        actionLoading ||
+                        (capacity != null && !capacity.allowed_team_sizes.includes(4))
+                      }
                       onClick={() => setTeamSize(4)}
                     >
                       <strong>4</strong>
@@ -759,6 +797,9 @@ function Registration() {
                   <p className="registration-description">
                     Member 04 appears only when you select 4. Fee is ₹100 ×
                     members, paid once for the team.
+                    {capacity && capacity.open && !capacity.allowed_team_sizes.includes(4)
+                      ? ` Only ${capacity.remaining} seats are left, so a team of 4 cannot register.`
+                      : ''}
                   </p>
                   {errors.teamSize ? (
                     <span className="field-error">{errors.teamSize}</span>

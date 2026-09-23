@@ -10,6 +10,10 @@ participantRoutes.post(
   participantController.checkAvailability,
 );
 participantRoutes.get(
+  "/capacity",
+  participantController.getRegistrationCapacity,
+);
+participantRoutes.get(
   "/:hackerId",
   participantController.getParticipantByHackerId,
 );

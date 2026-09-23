@@ -280,6 +280,18 @@ export function getTeam(code: string) {
   return request<ApiTeam>(`/teams/${encodeURIComponent(code)}`)
 }
 
+export type RegistrationCapacity = {
+  max: number
+  count: number
+  remaining: number
+  open: boolean
+  allowed_team_sizes: number[]
+}
+
+export function fetchRegistrationCapacity() {
+  return request<RegistrationCapacity>('/participants/capacity')
+}
+
 export function getPass(qrToken: string) {
   return request<ApiPass>(`/passes/${encodeURIComponent(qrToken)}`)
 }

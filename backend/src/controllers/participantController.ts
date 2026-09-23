@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import * as participantService from "../services/participantService.js";
+import * as registrationCapacity from "../services/registrationCapacity.js";
 import { toCreatedParticipant, toPublicParticipant } from "../utils/mappers.js";
 import {
   asTrimmedString,
@@ -72,6 +73,19 @@ export async function checkAvailability(
         ...(payment_txn_id ? { payment_txn_id } : {}),
       },
     });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getRegistrationCapacity(
+  _req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const capacity = await registrationCapacity.getRegistrationCapacity();
+    res.json({ success: true, data: capacity });
   } catch (err) {
     next(err);
   }

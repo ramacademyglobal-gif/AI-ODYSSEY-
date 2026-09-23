@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import multer from "multer";
 import { AppError } from "../middleware/errorHandler.js";
 import * as participantService from "../services/participantService.js";
+import { assertTeamFits, MAX_PARTICIPANTS, countParticipants } from "../services/registrationCapacity.js";
 import * as teamService from "../services/teamService.js";
 import { uploadPaymentScreenshot } from "../services/paymentStorageService.js";
 import { toCreatedParticipant } from "../utils/mappers.js";
@@ -126,6 +127,8 @@ export async function registerWithPaymentProof(
       .replace(/[^\w.-]+/g, "_")
       .slice(0, 40);
 
+    await assertTeamFits(teamPayload.team_size);
+
     // Duplicate email / phone / txn BEFORE uploading screenshot to Storage
     await participantService.checkRegistrationAvailability({
       email: teamPayload.leader.email,
@@ -140,6 +143,8 @@ export async function registerWithPaymentProof(
       transactionId,
       participantLabel: label || "participant",
     });
+
+    await assertTeamFits(teamPayload.team_size);
 
     const leader = await participantService.createParticipant({
       ...teamPayload.leader,
@@ -169,6 +174,15 @@ export async function registerWithPaymentProof(
         team_code: team.team_code,
         participant_id: mate.id,
       });
+    }
+
+    const saved = await countParticipants();
+    if (saved > MAX_PARTICIPANTS) {
+      throw new AppError(
+        403,
+        "Registrations are closed. Wait for AI Odyssey 2.0.",
+        "REGISTRATION_CLOSED",
+      );
     }
 
     res.status(201).json({

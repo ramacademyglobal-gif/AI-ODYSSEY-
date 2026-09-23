@@ -1,0 +1,126 @@
+.reg-closed {
+  min-height: calc(100vh - 5.5rem);
+  display: grid;
+  place-items: center;
+  padding: 3rem 1.25rem 4rem;
+  background: var(--bg-primary, #070707);
+  color: var(--text-primary, #f2f0eb);
+}
+
+.reg-closed__stage {
+  width: min(36rem, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.35rem;
+}
+
+.reg-closed__loader {
+  position: relative;
+  width: 7.5rem;
+  height: 7.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.reg-closed__ring,
+.reg-closed__arc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+}
+
+.reg-closed__ring {
+  border: 1px solid rgba(255, 77, 28, 0.28);
+}
+
+.reg-closed__arc {
+  border: 2px solid transparent;
+  border-top-color: var(--accent, #ff4d1c);
+  border-right-color: var(--accent, #ff4d1c);
+  animation: reg-closed-spin 1.15s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+.reg-closed__core {
+  position: absolute;
+  inset: 1.55rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 77, 28, 0.45), transparent 68%);
+  animation: reg-closed-pulse 1.8s ease-in-out infinite;
+}
+
+.reg-closed__status {
+  margin: 0;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--accent, #ff4d1c);
+  animation: reg-closed-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reg-closed__title {
+  margin: 0;
+  font-family: var(--font-body), Georgia, serif;
+  font-size: clamp(2.1rem, 6vw, 3.4rem);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--text-primary, #f2f0eb);
+  animation: reg-closed-rise 0.9s 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reg-closed__wait {
+  margin: 0;
+  font-family: var(--font-display), Inter, sans-serif;
+  font-size: clamp(1rem, 2.4vw, 1.25rem);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary, #c8c5bd);
+  animation: reg-closed-rise 0.9s 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.reg-closed__mark {
+  color: var(--accent, #ff4d1c);
+}
+
+@keyframes reg-closed-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes reg-closed-pulse {
+  0%,
+  100% {
+    transform: scale(0.82);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes reg-closed-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reg-closed__arc,
+  .reg-closed__core,
+  .reg-closed__status,
+  .reg-closed__title,
+  .reg-closed__wait {
+    animation: none;
+  }
+}
