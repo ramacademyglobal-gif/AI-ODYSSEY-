@@ -66,12 +66,12 @@
 }
 
 .cine__eye--intro {
-  animation: cine-eye-intro 36s linear both;
+  animation: cine-eye-intro 12s linear both;
 }
 
 .cine__void {
   background: #070707;
-  animation: cine-void 36s linear both;
+  animation: cine-void 12s linear both;
 }
 
 .cine__spark {
@@ -80,11 +80,11 @@
   border-radius: 50%;
   background: #ff4d1c;
   box-shadow: 0 0 24px #ff4d1c;
-  animation: cine-spark 36s linear both;
+  animation: cine-spark 12s linear both;
 }
 
 .cine__eye--open {
-  animation: cine-eye-open 36s linear both;
+  animation: cine-eye-open 12s linear both;
 }
 
 .cine__block {
@@ -96,17 +96,17 @@
 
 .cine__block--ai {
   font-size: clamp(5rem, 18vw, 11rem);
-  animation: cine-ai-block 36s linear both;
+  animation: cine-ai-block 12s linear both;
 }
 
 .cine__block--odyssey {
   font-size: clamp(3.2rem, 10vw, 7rem);
-  animation: cine-odyssey-block 36s linear both;
+  animation: cine-odyssey-block 12s linear both;
 }
 
 .cine__block--ver {
   font-size: clamp(5rem, 16vw, 10rem);
-  animation: cine-ver-block 36s linear both;
+  animation: cine-ver-block 12s linear both;
 }
 
 .cine__metal {
@@ -124,9 +124,9 @@
   opacity: 0;
 }
 
-.cine__burst--a { animation: cine-burst 36s linear both; }
-.cine__burst--b { animation: cine-burst-b 36s linear both; }
-.cine__burst--c { animation: cine-burst-c 36s linear both; }
+.cine__burst--a { animation: cine-burst 12s linear both; }
+.cine__burst--b { animation: cine-burst-b 12s linear both; }
+.cine__burst--c { animation: cine-burst-c 12s linear both; }
 
 .cine__stack {
   align-content: center;
@@ -137,12 +137,12 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #ff4d1c;
-  animation: cine-stack 36s linear both;
+  animation: cine-stack 12s linear both;
 }
 
 .cine__stack span {
   opacity: 0;
-  animation: cine-line 36s linear both;
+  animation: cine-line 12s linear both;
 }
 
 .cine__stack span:nth-child(1) { animation-delay: 0s; }
@@ -150,14 +150,14 @@
 .cine__stack span:nth-child(3) { animation-name: cine-line-c; }
 
 .cine__eye--bg {
-  animation: cine-eye-bg 36s linear both;
+  animation: cine-eye-bg 12s linear both;
 }
 
 .cine__flare {
   top: 48%;
   height: 3px;
   background: linear-gradient(90deg, transparent, #fff6e6, #ff4d1c, transparent);
-  animation: cine-flare 36s linear both;
+  animation: cine-flare 12s linear both;
 }
 
 .cine__final {
@@ -167,7 +167,7 @@
   justify-content: center;
   text-align: center;
   opacity: 0;
-  animation: cine-final 36s linear forwards;
+  animation: cine-final 12s linear forwards;
 }
 
 .cine__kicker {
@@ -201,53 +201,53 @@
 
 @keyframes cine-eye-intro {
   0% { opacity: 1; transform: scale(2.6); }
-  2.6% { opacity: 1; transform: scale(2.3); }
-  3.4% { opacity: 0; }
+  5% { opacity: 1; transform: scale(2.2); }
+  7% { opacity: 0; }
   100% { opacity: 0; }
 }
 
 @keyframes cine-void {
-  0%, 2.6% { opacity: 0; }
-  3.4%, 16% { opacity: 1; }
-  17.5% { opacity: 0; }
+  0%, 6% { opacity: 0; }
+  8%, 13% { opacity: 1; }
+  15% { opacity: 0; }
   100% { opacity: 0; }
 }
 
 @keyframes cine-spark {
-  0%, 4% { opacity: 0; transform: scale(0.2); }
-  8% { opacity: 1; transform: scale(1); }
-  16% { opacity: 1; transform: scale(2.2); }
-  18%, 100% { opacity: 0; }
+  0%, 7% { opacity: 0; transform: scale(0.2); }
+  10% { opacity: 1; transform: scale(1); }
+  13% { opacity: 1; transform: scale(2.2); }
+  15%, 100% { opacity: 0; }
 }
 
 @keyframes cine-eye-open {
-  0%, 16% { opacity: 0; transform: scale(2.2); }
-  17% { opacity: 1; transform: scale(2.1); }
-  22% { opacity: 1; transform: scale(1); }
-  24%, 100% { opacity: 0; }
+  0%, 13% { opacity: 0; transform: scale(2.2); }
+  15% { opacity: 1; transform: scale(2.1); }
+  21% { opacity: 1; transform: scale(1); }
+  23%, 100% { opacity: 0; }
 }
 
 @keyframes cine-ai-block {
-  0%, 23% { opacity: 0; }
+  0%, 22% { opacity: 0; }
   24% { opacity: 1; transform: scale(1); }
-  28% { opacity: 1; transform: scale(1); }
-  31% { opacity: 0; transform: scale(6); }
-  32%, 100% { opacity: 0; }
+  30% { opacity: 1; transform: scale(1); }
+  34% { opacity: 0; transform: scale(6); }
+  36%, 100% { opacity: 0; }
 }
 
 @keyframes cine-odyssey-block {
-  0%, 30% { opacity: 0; }
-  31.5% { opacity: 1; }
-  38% { opacity: 1; }
-  40%, 100% { opacity: 0; }
+  0%, 33% { opacity: 0; }
+  35% { opacity: 1; }
+  44% { opacity: 1; }
+  46%, 100% { opacity: 0; }
 }
 
 @keyframes cine-ver-block {
-  0%, 38.5% { opacity: 0; }
-  40% { opacity: 1; }
-  46% { opacity: 1; transform: scale(1); }
-  48% { opacity: 0; transform: scale(5); }
-  49%, 100% { opacity: 0; }
+  0%, 45% { opacity: 0; }
+  47% { opacity: 1; }
+  54% { opacity: 1; transform: scale(1); }
+  57% { opacity: 0; transform: scale(5); }
+  59%, 100% { opacity: 0; }
 }
 
 @keyframes cine-letter {
@@ -264,65 +264,64 @@
 }
 
 @keyframes cine-burst {
-  0%, 27% { opacity: 0; transform: scale(0.2); }
-  29% { opacity: 1; transform: scale(1); }
-  32% { opacity: 0; transform: scale(2.6); }
+  0%, 30% { opacity: 0; transform: scale(0.2); }
+  32% { opacity: 1; transform: scale(1); }
+  35% { opacity: 0; transform: scale(2.6); }
   100% { opacity: 0; }
 }
 
 @keyframes cine-burst-b {
-  0%, 36% { opacity: 0; transform: scale(0.2); }
-  38% { opacity: 1; }
-  41% { opacity: 0; transform: scale(2.6); }
+  0%, 41% { opacity: 0; transform: scale(0.2); }
+  43% { opacity: 1; }
+  46% { opacity: 0; transform: scale(2.6); }
   100% { opacity: 0; }
 }
 
 @keyframes cine-burst-c {
-  0%, 44% { opacity: 0; transform: scale(0.2); }
-  46% { opacity: 1; }
-  49% { opacity: 0; transform: scale(2.6); }
+  0%, 53% { opacity: 0; transform: scale(0.2); }
+  55% { opacity: 1; }
+  58% { opacity: 0; transform: scale(2.6); }
   100% { opacity: 0; }
 }
 
 @keyframes cine-stack {
-  0%, 52% { opacity: 0; }
-  53%, 80% { opacity: 1; }
-  83%, 100% { opacity: 0; }
+  0%, 57% { opacity: 0; }
+  59%, 74% { opacity: 1; }
+  77%, 100% { opacity: 0; }
 }
 
 @keyframes cine-line {
-  0%, 52% { opacity: 0; transform: translateY(16px); }
-  55%, 80% { opacity: 1; transform: none; }
-  83%, 100% { opacity: 0; }
+  0%, 57% { opacity: 0; transform: translateY(16px); }
+  60%, 74% { opacity: 1; transform: none; }
+  77%, 100% { opacity: 0; }
 }
 
 @keyframes cine-line-b {
-  0%, 56% { opacity: 0; transform: translateY(16px); }
-  59%, 80% { opacity: 1; transform: none; }
-  83%, 100% { opacity: 0; }
+  0%, 61% { opacity: 0; transform: translateY(16px); }
+  64%, 74% { opacity: 1; transform: none; }
+  77%, 100% { opacity: 0; }
 }
 
 @keyframes cine-line-c {
-  0%, 60% { opacity: 0; transform: translateY(16px); }
-  63%, 80% { opacity: 1; transform: none; }
-  83%, 100% { opacity: 0; }
+  0%, 65% { opacity: 0; transform: translateY(16px); }
+  68%, 74% { opacity: 1; transform: none; }
+  77%, 100% { opacity: 0; }
 }
 
 @keyframes cine-eye-bg {
-  0%, 63% { opacity: 0; transform: scale(1.35); }
-  66%, 96% { opacity: 1; transform: scale(1.05); }
-  100% { opacity: 0.35; transform: scale(1); }
+  0%, 72% { opacity: 0; transform: scale(1.35); }
+  76%, 100% { opacity: 0.45; transform: scale(1.05); }
 }
 
 @keyframes cine-flare {
-  0%, 78% { opacity: 0; transform: translateX(-30%); }
-  84% { opacity: 1; }
-  94%, 100% { opacity: 0; transform: translateX(80%); }
+  0%, 76% { opacity: 0; transform: translateX(-30%); }
+  82% { opacity: 1; }
+  90%, 100% { opacity: 0; transform: translateX(80%); }
 }
 
 @keyframes cine-final {
-  0%, 80% { opacity: 0; filter: blur(8px); transform: rotateX(50deg); }
-  90% { opacity: 1; filter: blur(0); transform: rotateX(0deg); }
+  0%, 76% { opacity: 0; filter: blur(8px); transform: rotateX(50deg); }
+  88% { opacity: 1; filter: blur(0); transform: rotateX(0deg); }
   100% { opacity: 1; filter: blur(0); transform: none; }
 }
 

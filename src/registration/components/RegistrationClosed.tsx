@@ -32,7 +32,7 @@ export function RegistrationClosed({ checking = false }: { checking?: boolean })
 
       <p className="cine__block cine__block--ai" aria-hidden="true">
         {AI.map((char, index) => (
-          <span key={char} className="cine__metal" style={{ animationDelay: `${8.7 + index * 0.14}s` }}>
+          <span key={char} className="cine__metal" style={{ animationDelay: `${2.9 + index * 0.1}s` }}>
             {char}
           </span>
         ))}
@@ -41,7 +41,7 @@ export function RegistrationClosed({ checking = false }: { checking?: boolean })
 
       <p className="cine__block cine__block--odyssey" aria-hidden="true">
         {ODYSSEY.map((char, index) => (
-          <span key={`${char}-${index}`} className="cine__metal" style={{ animationDelay: `${11.4 + index * 0.08}s` }}>
+          <span key={`${char}-${index}`} className="cine__metal" style={{ animationDelay: `${4.15 + index * 0.06}s` }}>
             {char}
           </span>
         ))}
@@ -49,7 +49,7 @@ export function RegistrationClosed({ checking = false }: { checking?: boolean })
       <div className="cine__burst cine__burst--b" aria-hidden="true" />
 
       <p className="cine__block cine__block--ver" aria-hidden="true">
-        <span className="cine__metal" style={{ animationDelay: "14.5s" }}>
+        <span className="cine__metal" style={{ animationDelay: "5.6s" }}>
           2.0
         </span>
       </p>
