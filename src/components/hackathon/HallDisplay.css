@@ -1,0 +1,220 @@
+.hall {
+  height: 100dvh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(0.5rem, 1.5vh, 1rem);
+  padding: clamp(0.75rem, 2vh, 1.4rem) clamp(0.75rem, 2.5vw, 2rem);
+  background: #070707;
+  color: #f2f0eb;
+  overflow: hidden;
+}
+
+.hall__status {
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: clamp(0.62rem, 1.4vw, 0.85rem);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #ff4d1c;
+}
+
+.hall__clock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(0.35rem, 1.2vw, 1.1rem);
+  min-width: 0;
+}
+
+.hall__colon {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: clamp(2rem, 7vh, 6rem);
+  line-height: 1;
+  color: #ff4d1c;
+  padding-bottom: 1.4rem;
+}
+
+.hall-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.hall-group__digits {
+  display: flex;
+  gap: clamp(0.25rem, 0.6vw, 0.55rem);
+}
+
+.hall-group__label {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: clamp(0.55rem, 1.2vw, 0.78rem);
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: #8a8a8a;
+}
+
+.flip-card {
+  position: relative;
+  width: clamp(2.35rem, 8vw, 8rem);
+  height: clamp(3.4rem, 14vh, 11rem);
+  border-radius: 0.45rem;
+  background: #121212;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.flip-card__half,
+.flip-card__leaf {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-weight: 700;
+  font-size: clamp(2.1rem, 9vh, 7.2rem);
+  line-height: 1;
+  color: #fff6e6;
+  text-shadow: 0 0 18px rgba(255, 77, 28, 0.28);
+}
+
+.flip-card__half--top,
+.flip-card__leaf {
+  top: 0;
+  align-items: flex-end;
+  background: linear-gradient(180deg, #2a2a2a, #161616);
+}
+
+.flip-card__half--bottom {
+  bottom: 0;
+  align-items: flex-start;
+  background: linear-gradient(180deg, #101010, #1c1c1c);
+}
+
+.flip-card__half span,
+.flip-card__leaf span {
+  display: block;
+}
+
+.flip-card__half--top span,
+.flip-card__leaf span {
+  transform: translateY(50%);
+}
+
+.flip-card__half--bottom span {
+  transform: translateY(-50%);
+}
+
+.flip-card__leaf {
+  z-index: 2;
+  transform-origin: center bottom;
+  animation: hall-flip 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.flip-card::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  top: calc(50% - 1px);
+  height: 2px;
+  background: #070707;
+}
+
+.hall__boards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(0.5rem, 2vw, 2rem);
+  align-items: end;
+}
+
+.hall-board__name {
+  margin: 0 0 0.45rem;
+  text-align: center;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: clamp(0.58rem, 1.3vw, 0.78rem);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #f2f0eb;
+}
+
+.hall-board__codes {
+  display: flex;
+  justify-content: center;
+  gap: clamp(0.6rem, 2vw, 1.5rem);
+}
+
+.hall-code {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.hall-code img,
+.hall-code__fallback {
+  width: clamp(4.2rem, 8vh, 6.4rem);
+  height: clamp(4.2rem, 8vh, 6.4rem);
+  background: #fff;
+  border-radius: 0.25rem;
+}
+
+.hall-code__fallback {
+  display: grid;
+  place-items: center;
+  color: #070707;
+  font-size: 0.65rem;
+}
+
+.hall-code span {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: clamp(0.52rem, 1.1vw, 0.68rem);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8a8a8a;
+}
+
+.hall__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes hall-flip {
+  from {
+    transform: rotateX(-75deg);
+  }
+  to {
+    transform: rotateX(0);
+  }
+}
+
+@media (max-width: 720px) {
+  .hall__boards {
+    grid-template-columns: 1fr;
+  }
+
+  .hall__colon {
+    padding-bottom: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flip-card__leaf {
+    animation: none;
+  }
+}
