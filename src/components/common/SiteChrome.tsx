@@ -9,9 +9,9 @@ import OpeningIntro from "@/components/common/OpeningIntro";
 
 export function SiteChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const isBare = pathname.startsWith("/admin") || pathname.startsWith("/display");
+  const isAdmin = pathname.startsWith("/admin");
 
-  if (isBare) {
+  if (isAdmin) {
     return (
       <div className="relative bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen overflow-x-hidden font-serif flex flex-col">
         <main className="relative z-10 w-full flex-grow">{children}</main>

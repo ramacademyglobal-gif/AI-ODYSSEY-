@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import { remainingHms } from "@/components/common/EventCountdown";
-import { useOfficialClockState } from "@/components/hackathon/HackathonClockProvider";
 import "./HallDisplay.css";
 
 const BOARDS = [
@@ -87,48 +85,33 @@ function SocialCode({ label, href }: { label: string; href: string }) {
   );
 }
 
-export function HallDisplay() {
-  const { phase, clock, officialNow } = useOfficialClockState();
-  const left =
-    phase === "live" && clock?.officialEndTime
-      ? remainingHms(clock.officialEndTime, officialNow)
-      : phase === "ended"
-        ? { hours: 0, minutes: 0, seconds: 0 }
-        : { hours: 24, minutes: 0, seconds: 0 };
-
-  const status =
-    phase === "syncing"
-      ? "Syncing official timer"
-      : phase === "live"
-        ? "Official 24-hour build window"
-        : phase === "ended"
-          ? "Mission complete"
-          : "Awaiting official start";
-
-  const showDigits = phase !== "syncing";
-
+export function HallClock({
+  hours,
+  minutes,
+  seconds,
+  status,
+}: {
+  hours: number;
+  minutes: number;
+  seconds: number;
+  status: string;
+}) {
   return (
-    <section className="hall" aria-label="AI Odyssey hall timer">
+    <div className="hall" aria-label="AI Odyssey 24-hour timer">
       <p className="hall__status">{status}</p>
-      {showDigits ? (
-        <div className="hall__clock">
-          <FlipGroup value={String(left.hours)} label="Hours" />
-          <span className="hall__colon" aria-hidden="true">
-            :
-          </span>
-          <FlipGroup value={String(left.minutes)} label="Minutes" />
-          <span className="hall__colon" aria-hidden="true">
-            :
-          </span>
-          <FlipGroup value={String(left.seconds)} label="Seconds" />
-        </div>
-      ) : (
-        <div className="hall__clock" />
-      )}
+      <div className="hall__clock">
+        <FlipGroup value={String(hours)} label="Hours" />
+        <span className="hall__colon" aria-hidden="true">
+          :
+        </span>
+        <FlipGroup value={String(minutes)} label="Minutes" />
+        <span className="hall__colon" aria-hidden="true">
+          :
+        </span>
+        <FlipGroup value={String(seconds)} label="Seconds" />
+      </div>
       <p className="hall__sr" aria-live="polite">
-        {showDigits
-          ? `${left.hours} hours ${left.minutes} minutes ${left.seconds} seconds`
-          : status}
+        {`${hours} hours ${minutes} minutes ${seconds} seconds`}
       </p>
       <div className="hall__boards">
         {BOARDS.map((board) => (
@@ -142,6 +125,6 @@ export function HallDisplay() {
           </div>
         ))}
       </div>
-    </section>
+    </div>
   );
 }

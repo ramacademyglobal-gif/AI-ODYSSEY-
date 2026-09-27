@@ -1,7 +1,8 @@
 "use client";
 
-import EventCountdown, { CountdownUnits, remainingHms } from "@/components/common/EventCountdown";
+import EventCountdown, { remainingHms } from "@/components/common/EventCountdown";
 import { useOfficialClockState } from "@/components/hackathon/HackathonClockProvider";
+import { HallClock } from "@/components/hackathon/HallDisplay";
 
 export function LiveClockSlot() {
   const { phase, clock, offsetMs, officialNow } = useOfficialClockState();
@@ -26,32 +27,21 @@ export function LiveClockSlot() {
     );
   }
 
-  if (phase === "ended" || !clock?.officialEndTime) {
+  if (phase === "ended" || (phase === "live" && !clock?.officialEndTime)) {
+    return <HallClock hours={0} minutes={0} seconds={0} status="Mission complete" />;
+  }
+
+  if (phase === "live" && clock?.officialEndTime) {
+    const left = remainingHms(clock.officialEndTime, officialNow);
     return (
-      <div className="flex flex-col items-center gap-3">
-        <p className="font-mono-custom text-[10px] tracking-[0.3em] uppercase text-[#8A8A8A]">
-          Mission complete
-        </p>
-        <p className="font-mono-custom text-[10px] tracking-[0.18em] uppercase text-[#8A8A8A]">
-          The 24-hour Odyssey has ended.
-        </p>
-      </div>
+      <HallClock
+        hours={left.hours}
+        minutes={left.minutes}
+        seconds={left.seconds}
+        status="Official 24-hour build window"
+      />
     );
   }
 
-  const left = remainingHms(clock.officialEndTime, officialNow);
-  return (
-    <div className="flex flex-col items-center gap-3">
-      <p className="font-mono-custom text-[9px] tracking-[0.3em] uppercase text-[#8A8A8A]">
-        AI Odyssey // Live
-      </p>
-      <CountdownUnits
-        units={[
-          { value: left.hours, label: "Hrs" },
-          { value: left.minutes, label: "Min" },
-          { value: left.seconds, label: "Sec" },
-        ]}
-      />
-    </div>
-  );
+  return null;
 }

@@ -2,52 +2,13 @@
 
 import { type FormEvent, useCallback, useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { CountdownUnits, remainingHms } from "@/components/common/EventCountdown";
+import { remainingHms } from "@/components/common/EventCountdown";
 import { useHackathonClock } from "@/components/hackathon/HackathonClockProvider";
+import { HallClock } from "@/components/hackathon/HallDisplay";
 import { ClockRequestError, authorizeJury, startOfficialWindow } from "@/hackathon/officialClock";
 
 const buttonClass =
   "inline-flex w-full max-w-sm items-center justify-center font-mono-custom text-xs tracking-[0.22em] uppercase min-h-11 px-5 py-3 border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-[var(--bg-secondary)] transition-colors disabled:cursor-wait disabled:opacity-50 focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--accent)] focus-visible:outline-offset-2";
-
-function LiveReadout({ endIso, nowMs }: { endIso: string; nowMs: number }) {
-  const left = remainingHms(endIso, nowMs);
-  return (
-    <div className="flex flex-col items-center gap-3">
-      <p className="font-mono-custom text-[9px] tracking-[0.3em] uppercase text-[#8A8A8A]">
-        AI Odyssey // Live
-      </p>
-      <CountdownUnits
-        units={[
-          { value: left.hours, label: "Hrs" },
-          { value: left.minutes, label: "Min" },
-          { value: left.seconds, label: "Sec" },
-        ]}
-      />
-      <p className="font-mono-custom text-[9px] tracking-[0.3em] uppercase text-[#8A8A8A]">
-        Official 24-hour build window
-      </p>
-    </div>
-  );
-}
-
-function EndedReadout() {
-  return (
-    <div className="flex flex-col items-center gap-4">
-      <p className="label-tech">AI Odyssey 24</p>
-      <h2 className="font-serif text-3xl text-[var(--text-primary)] md:text-5xl">Mission complete</h2>
-      <CountdownUnits
-        units={[
-          { value: 0, label: "Hrs" },
-          { value: 0, label: "Min" },
-          { value: 0, label: "Sec" },
-        ]}
-      />
-      <p className="font-mono-custom text-[10px] tracking-[0.22em] uppercase text-[#8A8A8A]">
-        The 24-hour Odyssey has ended.
-      </p>
-    </div>
-  );
-}
 
 const LAUNCH_STEPS = ["3", "2", "1", "ODYSSEY BEGINS"];
 function LaunchSequence({ onDone }: { onDone: () => void }) {
@@ -200,8 +161,22 @@ export function OfficialLaunchSection() {
     }
   };
 
+  const liveLeft = phase === "live" && clock?.officialEndTime ? remainingHms(clock.officialEndTime, officialNow) : null;
+  const previewLeft = practice && previewEnd ? remainingHms(previewEnd, officialNow) : null;
+  const timer =
+    phase === "ended"
+      ? { hours: 0, minutes: 0, seconds: 0, status: "Mission complete" }
+      : liveLeft
+        ? { ...liveLeft, status: "Official 24-hour build window" }
+        : previewLeft
+          ? { ...previewLeft, status: "Preview only. This does not start the official clock." }
+          : null;
+
   return (
-    <section id="official-launch" className="content-wrap section-pad scroll-mt-24">
+    <section id="official-launch" className={timer ? "scroll-mt-24" : "content-wrap section-pad scroll-mt-24"}>
+      {timer ? <HallClock hours={timer.hours} minutes={timer.minutes} seconds={timer.seconds} status={timer.status} /> : null}
+
+      {timer ? null : (
       <div className="odyssey-card mx-auto max-w-3xl px-5 py-10 text-center sm:px-10 md:py-14">
         {practice ? (
           <p className="mb-6 font-mono-custom text-[10px] tracking-[0.22em] uppercase text-[#ff4d1c]">
@@ -214,14 +189,6 @@ export function OfficialLaunchSection() {
             Syncing official timer...
           </p>
         ) : null}
-
-        {phase === "ended" ? <EndedReadout /> : null}
-
-        {phase === "live" && clock?.officialEndTime ? (
-          <LiveReadout endIso={clock.officialEndTime} nowMs={officialNow} />
-        ) : null}
-
-        {practice && previewEnd ? <LiveReadout endIso={previewEnd} nowMs={officialNow} /> : null}
 
         {(phase === "awaiting" || (practice && !previewEnd)) ? (
           <div className="mx-auto flex max-w-md flex-col items-center">
@@ -271,6 +238,7 @@ export function OfficialLaunchSection() {
           </div>
         ) : null}
       </div>
+      )}
 
       {confirming ? (
         <ConfirmStart busy={starting} onCancel={closeConfirm} onConfirm={() => void confirmStart()} />
