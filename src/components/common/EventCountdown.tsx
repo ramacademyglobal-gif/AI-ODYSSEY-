@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { EVENT_CONFIG } from "@/config/event";
 
 interface TimeLeft {
@@ -10,9 +10,9 @@ interface TimeLeft {
   seconds: number;
 }
 
-function calcLeft(target: string | null): TimeLeft {
+function calcLeft(target: string | null, nowMs: number): TimeLeft {
   if (!target) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
-  const diff = Math.max(0, new Date(target).getTime() - Date.now());
+  const diff = Math.max(0, new Date(target).getTime() - nowMs);
   return {
     days: Math.floor(diff / (1000 * 60 * 60 * 24)),
     hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
@@ -34,21 +34,61 @@ function Unit({ value, label }: { value: number; label: string }) {
   );
 }
 
+export function CountdownUnits({
+  units,
+  compact = false,
+}: {
+  units: { value: number; label: string }[];
+  compact?: boolean;
+}) {
+  return (
+    <div className={`flex items-end justify-center gap-2 sm:gap-4 ${compact ? "scale-95" : ""}`}>
+      {units.map((unit, index) => (
+        <Fragment key={unit.label}>
+          {index > 0 ? (
+            <span className="font-mono-custom text-[#FF4D1C] text-2xl sm:text-3xl pb-5">:</span>
+          ) : null}
+          <Unit value={unit.value} label={unit.label} />
+        </Fragment>
+      ))}
+    </div>
+  );
+}
+
+export function remainingHms(endIso: string, nowMs: number): { hours: number; minutes: number; seconds: number } {
+  const diff = Math.max(0, new Date(endIso).getTime() - nowMs);
+  return {
+    hours: Math.floor(diff / (1000 * 60 * 60)),
+    minutes: Math.floor((diff / (1000 * 60)) % 60),
+    seconds: Math.floor((diff / 1000) % 60),
+  };
+}
+
 export default function EventCountdown({
   className = "",
   compact = false,
+  lockPreEvent = false,
+  clockOffsetMs = 0,
 }: {
   className?: string;
   compact?: boolean;
+  /** Stay on the pre-event countdown. Do not roll into the 24-hour window. */
+  lockPreEvent?: boolean;
+  clockOffsetMs?: number;
 }) {
   const [time, setTime] = useState<TimeLeft>({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const [phase, setPhase] = useState<"before" | "live" | "done">("before");
 
   useEffect(() => {
     const tick = () => {
-      const now = Date.now();
+      const now = Date.now() + clockOffsetMs;
       const start = EVENT_CONFIG.eventStart ? new Date(EVENT_CONFIG.eventStart).getTime() : 0;
       const end = EVENT_CONFIG.eventEnd ? new Date(EVENT_CONFIG.eventEnd).getTime() : 0;
+      if (lockPreEvent) {
+        setPhase("before");
+        setTime(calcLeft(EVENT_CONFIG.eventStart, now));
+        return;
+      }
       if (end && now >= end) {
         setPhase("done");
         setTime({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -56,16 +96,16 @@ export default function EventCountdown({
       }
       if (start && now >= start) {
         setPhase("live");
-        setTime(calcLeft(EVENT_CONFIG.eventEnd));
+        setTime(calcLeft(EVENT_CONFIG.eventEnd, now));
         return;
       }
       setPhase("before");
-      setTime(calcLeft(EVENT_CONFIG.eventStart));
+      setTime(calcLeft(EVENT_CONFIG.eventStart, now));
     };
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [clockOffsetMs, lockPreEvent]);
 
   if (phase === "done") {
     return (

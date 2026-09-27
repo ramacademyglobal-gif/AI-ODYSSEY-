@@ -1,0 +1,107 @@
+"use client";
+
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import {
+  type OfficialClock,
+  type ViewPhase,
+  fetchOfficialClock,
+  viewPhase,
+} from "@/hackathon/officialClock";
+import { CountdownTransition } from "@/components/hackathon/CountdownTransition";
+
+type ClockContextValue = {
+  phase: ViewPhase;
+  clock: OfficialClock | null;
+  offsetMs: number;
+  officialNow: number;
+  adopt: (clock: OfficialClock) => void;
+};
+
+const ClockContext = createContext<ClockContextValue | null>(null);
+
+export function useHackathonClock(): ClockContextValue {
+  const value = useContext(ClockContext);
+  if (!value) {
+    throw new Error("Hackathon clock is only available on the homepage");
+  }
+  return value;
+}
+
+export function useOfficialClockState(): ClockContextValue {
+  const [clock, setClock] = useState<OfficialClock | null>(null);
+  const [offsetMs, setOffsetMs] = useState(0);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  const timerRef = useRef<number>(0);
+
+  const adopt = useCallback((next: OfficialClock) => {
+    setClock(next);
+    setOffsetMs(new Date(next.serverTime).getTime() - Date.now());
+    setNowMs(Date.now());
+  }, []);
+
+  useEffect(() => {
+    let cancel = false;
+
+    const load = async () => {
+      try {
+        const next = await fetchOfficialClock();
+        if (cancel) return;
+        adopt(next);
+        timerRef.current = window.setTimeout(load, 30000);
+      } catch {
+        if (cancel) return;
+        timerRef.current = window.setTimeout(load, 15000);
+      }
+    };
+
+    void load();
+    const tick = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => {
+      cancel = true;
+      window.clearTimeout(timerRef.current);
+      window.clearInterval(tick);
+    };
+  }, [adopt]);
+
+  const officialNow = nowMs + offsetMs;
+  const phase = viewPhase({ clock, officialNow });
+
+  return { phase, clock, offsetMs, officialNow, adopt };
+}
+
+export function HackathonClockProvider({ children }: { children: React.ReactNode }) {
+  const clock = useOfficialClockState();
+  const previous = useRef<ViewPhase | null>(null);
+  const played = useRef(false);
+  const [showTransition, setShowTransition] = useState(false);
+  const finishTransition = useCallback(() => setShowTransition(false), []);
+
+  useEffect(() => {
+    const prev = previous.current;
+    previous.current = clock.phase;
+    if (prev === "pre" && clock.phase === "awaiting" && !played.current) {
+      played.current = true;
+      const timer = window.setTimeout(() => setShowTransition(true), 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, [clock.phase]);
+
+  useEffect(() => {
+    if (showTransition) return;
+    if (clock.phase === "pre" || clock.phase === "syncing") return;
+    const target = document.getElementById("official-launch");
+    if (!target) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timer = window.setTimeout(() => {
+      target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [clock.phase, showTransition]);
+
+  return (
+    <ClockContext.Provider value={clock}>
+      {children}
+      {showTransition ? <CountdownTransition onDone={finishTransition} /> : null}
+    </ClockContext.Provider>
+  );
+}

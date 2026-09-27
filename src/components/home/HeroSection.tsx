@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useRef } from "react";
 import { motion } from "framer-motion";
 import EventCountdown from "@/components/common/EventCountdown";
+import { useHackathonClock } from "@/components/hackathon/HackathonClockProvider";
 import { EVENT_CONFIG } from "@/config/event";
 
 export default function HeroSection() {
+  const clock = useHackathonClock();
   const ref = useRef<HTMLElement>(null);
   const place =
     EVENT_CONFIG.venueName?.split(" ").slice(0, 2).join(" ") ?? "RIT";
@@ -118,7 +120,13 @@ export default function HeroSection() {
           transition={{ delay: 0.5 }}
           className="mt-10"
         >
-          <EventCountdown compact />
+          {clock.phase === "pre" ? (
+            <EventCountdown compact lockPreEvent clockOffsetMs={clock.offsetMs} />
+          ) : clock.phase === "syncing" ? (
+            <p className="font-mono-custom text-[10px] tracking-[0.3em] uppercase text-[#8A8A8A]">
+              Syncing official timer...
+            </p>
+          ) : null}
         </motion.div>
       </div>
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import PageHero from "@/components/common/PageHero";
-import EventCountdown from "@/components/common/EventCountdown";
+import { LiveClockSlot } from "@/components/hackathon/LiveClockSlot";
 import { ANNOUNCEMENTS } from "@/data/announcements";
 import { EVENT_CONFIG } from "@/config/event";
 
@@ -27,7 +27,7 @@ export default function LivePage() {
           <h2 className="font-serif text-3xl md:text-4xl text-[var(--text-primary)]">
             Control goes live on 28 September 2026
           </h2>
-          <EventCountdown />
+          <LiveClockSlot />
         </div>
 
         <div className="space-y-4">

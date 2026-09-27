@@ -8,6 +8,7 @@ import { teamRoutes } from "./routes/teamRoutes.js";
 import { passRoutes } from "./routes/passRoutes.js";
 import { paymentRoutes } from "./routes/paymentRoutes.js";
 import { adminRoutes } from "./routes/adminRoutes.js";
+import { hackathonRoutes } from "./routes/hackathonRoutes.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 
 const app = express();
@@ -45,6 +46,7 @@ app.use("/api/teams", teamRoutes);
 app.use("/api/passes", passRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/hackathon", hackathonRoutes);
 
 app.use(errorHandler);
 
