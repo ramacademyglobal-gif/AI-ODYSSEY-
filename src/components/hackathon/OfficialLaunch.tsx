@@ -135,7 +135,7 @@ function ConfirmStart({
 }
 
 export function OfficialLaunchSection() {
-  const { phase, clock, officialNow, adopt } = useHackathonClock();
+  const { phase, clock, officialNow, adopt, preview } = useHackathonClock();
   const codeId = useId();
   const [code, setCode] = useState("");
   const [notice, setNotice] = useState("");
@@ -144,12 +144,14 @@ export function OfficialLaunchSection() {
   const [confirming, setConfirming] = useState(false);
   const [starting, setStarting] = useState(false);
   const [sequence, setSequence] = useState(false);
+  const [previewEnd, setPreviewEnd] = useState<string | null>(null);
   const finishSequence = useCallback(() => setSequence(false), []);
   const closeConfirm = useCallback(() => {
     if (!starting) setConfirming(false);
   }, [starting]);
 
-  if (phase === "pre") return null;
+  const practice = preview && phase !== "live" && phase !== "ended";
+  if (phase === "pre" && !practice) return null;
 
   const submitCode = async (event: FormEvent) => {
     event.preventDefault();
@@ -177,6 +179,14 @@ export function OfficialLaunchSection() {
     if (!launchToken || starting) return;
     setStarting(true);
     setNotice("");
+    if (practice) {
+      setPreviewEnd(new Date(officialNow + 24 * 60 * 60 * 1000).toISOString());
+      setLaunchToken(null);
+      setConfirming(false);
+      setSequence(true);
+      setStarting(false);
+      return;
+    }
     try {
       const result = await startOfficialWindow(launchToken);
       adopt(result.clock);
@@ -193,7 +203,13 @@ export function OfficialLaunchSection() {
   return (
     <section id="official-launch" className="content-wrap section-pad scroll-mt-24">
       <div className="odyssey-card mx-auto max-w-3xl px-5 py-10 text-center sm:px-10 md:py-14">
-        {phase === "syncing" ? (
+        {practice ? (
+          <p className="mb-6 font-mono-custom text-[10px] tracking-[0.22em] uppercase text-[#ff4d1c]">
+            Preview only. This does not start the official clock.
+          </p>
+        ) : null}
+
+        {phase === "syncing" && !practice ? (
           <p className="font-mono-custom text-[10px] tracking-[0.3em] uppercase text-[#8A8A8A]">
             Syncing official timer...
           </p>
@@ -205,7 +221,9 @@ export function OfficialLaunchSection() {
           <LiveReadout endIso={clock.officialEndTime} nowMs={officialNow} />
         ) : null}
 
-        {phase === "awaiting" ? (
+        {practice && previewEnd ? <LiveReadout endIso={previewEnd} nowMs={officialNow} /> : null}
+
+        {(phase === "awaiting" || (practice && !previewEnd)) ? (
           <div className="mx-auto flex max-w-md flex-col items-center">
             <p className="label-tech">System // AI Odyssey 24</p>
             <h2 className="mt-3 font-serif text-3xl text-[var(--text-primary)] md:text-5xl">

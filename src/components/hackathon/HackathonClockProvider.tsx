@@ -14,6 +14,8 @@ type ClockContextValue = {
   clock: OfficialClock | null;
   offsetMs: number;
   officialNow: number;
+  /** Visual check only. Does not change the saved official clock. */
+  preview: boolean;
   adopt: (clock: OfficialClock) => void;
 };
 
@@ -66,15 +68,24 @@ export function useOfficialClockState(): ClockContextValue {
   const officialNow = nowMs + offsetMs;
   const phase = viewPhase({ clock, officialNow });
 
-  return { phase, clock, offsetMs, officialNow, adopt };
+  return { phase, clock, offsetMs, officialNow, preview: false, adopt };
 }
 
 export function HackathonClockProvider({ children }: { children: React.ReactNode }) {
   const clock = useOfficialClockState();
   const previous = useRef<ViewPhase | null>(null);
   const played = useRef(false);
+  const [preview, setPreview] = useState(false);
   const [showTransition, setShowTransition] = useState(false);
   const finishTransition = useCallback(() => setShowTransition(false), []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      setPreview(params.get("preview") === "launch");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const prev = previous.current;
@@ -87,8 +98,15 @@ export function HackathonClockProvider({ children }: { children: React.ReactNode
   }, [clock.phase]);
 
   useEffect(() => {
+    if (!preview || played.current) return;
+    played.current = true;
+    const timer = window.setTimeout(() => setShowTransition(true), 0);
+    return () => window.clearTimeout(timer);
+  }, [preview]);
+
+  useEffect(() => {
     if (showTransition) return;
-    if (clock.phase === "pre" || clock.phase === "syncing") return;
+    if (!preview && (clock.phase === "pre" || clock.phase === "syncing")) return;
     const target = document.getElementById("official-launch");
     if (!target) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -96,10 +114,10 @@ export function HackathonClockProvider({ children }: { children: React.ReactNode
       target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [clock.phase, showTransition]);
+  }, [clock.phase, showTransition, preview]);
 
   return (
-    <ClockContext.Provider value={clock}>
+    <ClockContext.Provider value={{ ...clock, preview }}>
       {children}
       {showTransition ? <CountdownTransition onDone={finishTransition} /> : null}
     </ClockContext.Provider>
