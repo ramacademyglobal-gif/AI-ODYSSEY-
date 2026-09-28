@@ -10,7 +10,7 @@ import { ClockRequestError, authorizeJury, startOfficialWindow } from "@/hackath
 const buttonClass =
   "inline-flex w-full max-w-sm items-center justify-center font-mono-custom text-xs tracking-[0.22em] uppercase min-h-11 px-5 py-3 border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--accent)] hover:text-[var(--bg-secondary)] transition-colors disabled:cursor-wait disabled:opacity-50 focus-visible:outline focus-visible:outline-1 focus-visible:outline-[var(--accent)] focus-visible:outline-offset-2";
 
-const LAUNCH_STEPS = ["3", "2", "1", "ODYSSEY BEGINS"];
+const LAUNCH_STEPS = ["10", "9", "8", "7", "6", "5", "4", "3", "2", "1", "ODYSSEY BEGINS"];
 function LaunchSequence({ onDone }: { onDone: () => void }) {
   const [step, setStep] = useState(0);
 
