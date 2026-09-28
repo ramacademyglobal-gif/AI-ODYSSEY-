@@ -59,7 +59,7 @@ function SocialCode({ label, href }: { label: string; href: string }) {
     void QRCode.toDataURL(href, {
       errorCorrectionLevel: "M",
       margin: 1,
-      width: 280,
+      width: 640,
       color: { dark: "#070707", light: "#ffffff" },
     })
       .then((url) => {

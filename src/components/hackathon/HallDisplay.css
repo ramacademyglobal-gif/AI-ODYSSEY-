@@ -161,8 +161,8 @@
 
 .hall-code img,
 .hall-code__fallback {
-  width: clamp(4.2rem, 8vh, 6.4rem);
-  height: clamp(4.2rem, 8vh, 6.4rem);
+  width: clamp(8rem, 18vh, 14rem);
+  height: clamp(8rem, 18vh, 14rem);
   background: #fff;
   border-radius: 0.25rem;
 }
