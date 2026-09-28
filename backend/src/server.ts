@@ -25,11 +25,30 @@ app.use(
 
 app.use(express.json({ limit: "100kb" }));
 
+function isOpenApiRead(path: string): boolean {
+  return (
+    path === "/api/health" ||
+    path === "/api/hackathon/state" ||
+    /^\/api\/passes\/[^/]+\/scan$/.test(path)
+  );
+}
+
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 100,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    const path = req.originalUrl.split("?")[0];
+    if (req.method === "GET" && isOpenApiRead(path)) return true;
+    if (req.method === "POST" && /^\/api\/passes\/[^/]+\/checkin$/.test(path)) return true;
+    return false;
+  },
+  message: {
+    success: false,
+    error: "RATE_LIMITED",
+    message: "Too many attempts from this network. Wait a minute and scan again.",
+  },
 });
 
 app.use("/api", limiter);

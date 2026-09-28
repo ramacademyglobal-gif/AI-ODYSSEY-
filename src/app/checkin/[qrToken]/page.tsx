@@ -86,13 +86,32 @@ async function requestGate<T>(path: string, init?: RequestInit): Promise<T> {
     );
   }
 
-  const body = (await response.json()) as {
+  let body: {
     success?: boolean;
     data?: T;
     error?: string;
     message?: string;
     details?: string[];
   };
+  try {
+    body = (await response.json()) as typeof body;
+  } catch {
+    throw new ApiError(
+      response.status,
+      response.status === 429
+        ? "Too many attempts from this network. Wait a minute and scan again."
+        : "Unable to reach the registration server. Please try again.",
+      response.status === 429 ? "RATE_LIMITED" : "BAD_RESPONSE",
+    );
+  }
+
+  if (response.status === 429) {
+    throw new ApiError(
+      429,
+      "Too many attempts from this network. Wait a minute and scan again.",
+      "RATE_LIMITED",
+    );
+  }
 
   if (!response.ok || !body.success || !body.data) {
     throw new ApiError(
